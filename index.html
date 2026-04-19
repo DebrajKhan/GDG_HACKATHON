@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APP | Content Authenticity & Protection</title>
+    <meta name="description" content="Protect your photos and videos and verify their authenticity.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast-container" class="toast-container"></div>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-menu" class="sidebar-menu">
+        <div class="sidebar-header">
+            <div class="profile-section">
+                <div class="profile-pic">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <div class="profile-info">
+                    <h3>Guest User</h3>
+                    <p>Not logged in</p>
+                </div>
+            </div>
+            <button id="close-sidebar-btn" class="close-sidebar-btn" aria-label="Close Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link" data-action="settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Settings
+            </a>
+            <a href="#" class="sidebar-link" data-action="library">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                Uploaded Files
+            </a>
+            <a href="#" class="sidebar-link" data-action="help">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Help
+            </a>
+            <div class="sidebar-divider"></div>
+            <a href="#" class="sidebar-link" data-action="account">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                Manage Account
+            </a>
+        </nav>
+    </aside>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <aside id="sidebar-menu" class="sidebar-menu">
+        <div class="sidebar-header">
+            <div class="profile-section">
+                <div class="profile-pic">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <div class="profile-info">
+                    <h3>Guest User</h3>
+                    <p>Not logged in</p>
+                </div>
+            </div>
+            <button id="close-sidebar-btn" class="close-sidebar-btn" aria-label="Close Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link" data-action="settings">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Settings
+            </a>
+            <a href="#" class="sidebar-link" data-action="library">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                Uploaded Files
+            </a>
+            <a href="#" class="sidebar-link" data-action="help">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Help
+            </a>
+            <div class="sidebar-divider"></div>
+            <a href="#" class="sidebar-link" data-action="account">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                Manage Account
+            </a>
+        </nav>
+    </aside>
+    <div class="galaxy-background">
+        <div class="stars"></div>
+        <div class="stars2"></div>
+        <div class="stars3"></div>
+        <div class="nebula"></div>
+    </div>
+
+    <header class="glass-nav">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <button id="hamburger-btn" class="hamburger-btn" aria-label="Open Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="logo">
+                <span class="gradient-text">APP</span>
+            </div>
+        </div>
+        <nav class="nav-links">
+            <button class="nav-btn active" data-target="protect-section">Seal Your Identity</button>
+            <button class="nav-btn" data-target="verify-section">Check Authenticity</button>
+        </nav>
+        <div class="theme-toggle">
+            <label class="realistic-toggle" aria-label="Toggle Theme">
+                <input type="checkbox" id="theme-switch-checkbox">
+                <span class="toggle-track">
+                    <svg class="toggle-icon-sun" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#ff9900" stroke="#ff9900" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="toggle-icon-moon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <span class="toggle-thumb"></span>
+                </span>
+            </label>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Protect Files Section -->
+        <section id="protect-section" class="view-section active">
+            <div class="glass-card">
+                <h1 class="title">Secure Your <span class="gradient-text">Assets</span></h1>
+                <div class="input-group">
+                    <label for="owner-id" class="input-label">Identity / Owner ID</label>
+                    <input type="text" id="owner-id" class="glass-input" placeholder="e.g. John Doe or ID-9942">
+                </div>
+                
+                <div class="drop-zone" id="protect-drop-zone">
+                    <div class="drop-zone-content">
+                        <svg class="upload-icon" viewBox="0 0 64 64" width="56" height="56" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.4));">
+                            <defs>
+                                <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#FFDF00"/>
+                                    <stop offset="50%" stop-color="#FDB813"/>
+                                    <stop offset="100%" stop-color="#B8860B"/>
+                                </linearGradient>
+                                <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#F0F0F0"/>
+                                    <stop offset="50%" stop-color="#B0B0B0"/>
+                                    <stop offset="100%" stop-color="#808080"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Shackle -->
+                            <path d="M22,28 V16 c0,-5.5 4.5,-10 10,-10 c5.5,0 10,4.5 10,10 v12" fill="none" stroke="url(#silverGrad)" stroke-width="6" stroke-linecap="round"/>
+                            <!-- Lock Body -->
+                            <rect x="14" y="28" width="36" height="30" rx="4" fill="url(#goldGrad)" stroke="#A06A00" stroke-width="1.5"/>
+                            <rect x="16" y="30" width="32" height="26" rx="3" fill="none" stroke="#FFF7B0" stroke-width="1" opacity="0.6"/>
+                            <!-- Keyhole -->
+                            <circle cx="32" cy="40" r="4" fill="#222"/>
+                            <path d="M30,42 h4 l-1.5,8 h-1 Z" fill="#222"/>
+                        </svg>
+                        <p>Drag and drop your files here</p>
+                        <p class="separator">or</p>
+                        <label for="protect-file-input" class="btn-primary">Browse Files</label>
+                        <input type="file" id="protect-file-input" multiple accept="image/*,video/*" class="file-input">
+                    </div>
+                </div>
+                <div class="file-list" id="protect-file-list"></div>
+                
+                <div class="vault-container">
+                    <svg class="treasure-vault-bg" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="vaultGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#FFDF00"/>
+                                <stop offset="50%" stop-color="#D4AF37"/>
+                                <stop offset="100%" stop-color="#996515"/>
+                            </linearGradient>
+                            <linearGradient id="vaultDark" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#553A00"/>
+                                <stop offset="100%" stop-color="#221500"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Inside of the vault (dark) -->
+                        <path d="M 30 60 L 170 60 L 160 90 L 40 90 Z" fill="url(#vaultDark)" />
+                        
+                        <!-- Falling File -->
+                        <g id="falling-file" style="transform: translateY(-50px); opacity: 0; transition: all 0.5s ease-in;">
+                            <rect x="85" y="30" width="30" height="40" rx="3" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+                            <line x1="92" y1="40" x2="108" y2="40" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="92" y1="48" x2="108" y2="48" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="92" y1="56" x2="100" y2="56" stroke="#64748b" stroke-width="2" stroke-linecap="round"/>
+                        </g>
+
+                        <!-- Vault Lid (Open backwards) -->
+                        <g id="vault-lid-group" style="transform-origin: 100px 60px; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
+                            <path d="M 30 60 L 170 60 L 150 20 L 50 20 Z" fill="url(#vaultGold)" stroke="#664200" stroke-width="3" stroke-linejoin="round"/>
+                        </g>
+                        
+                        <!-- Vault Body (Front) -->
+                        <path d="M 20 80 L 180 80 L 170 140 L 30 140 Z" fill="url(#vaultGold)" stroke="#664200" stroke-width="3" stroke-linejoin="round"/>
+                        
+                        <!-- Vault Details -->
+                        <circle cx="100" cy="110" r="12" fill="#333" stroke="#FFF" stroke-width="1.5"/>
+                        <circle cx="100" cy="110" r="8" fill="#111"/>
+                        <path d="M 98 107 h 4 l -1 8 h -2 Z" fill="#FFF"/>
+                        <!-- Rivets -->
+                        <circle cx="40" cy="90" r="2" fill="#553A00"/>
+                        <circle cx="160" cy="90" r="2" fill="#553A00"/>
+                        <circle cx="45" cy="130" r="2" fill="#553A00"/>
+                        <circle cx="155" cy="130" r="2" fill="#553A00"/>
+                    </svg>
+                    
+                    <div class="vault-actions" id="vault-actions">
+                        <button id="secure-vault-btn" class="btn-primary vault-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;">
+                                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                            </svg>
+                            Secure Vault
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Check Authenticity Section -->
+        <section id="verify-section" class="view-section">
+            <div class="glass-card">
+                <h1 class="title">Verify <span class="gradient-text">Authenticity</span></h1>
+                <p class="subtitle">Upload a media file to scan and verify its original cryptographic signature to ensure it hasn't been tampered with or deepfaked.</p>
+                
+                <div class="drop-zone" id="verify-drop-zone">
+                    <div class="drop-zone-content">
+                        <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <p>Drag and drop your files here</p>
+                        <p class="separator">or</p>
+                        <label for="verify-file-input" class="btn-primary">Browse Files</label>
+                        <input type="file" id="verify-file-input" multiple accept="image/*,video/*" class="file-input">
+                    </div>
+                </div>
+                <div class="file-list" id="verify-file-list"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
