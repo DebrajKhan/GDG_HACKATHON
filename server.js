@@ -33,18 +33,15 @@ app.use(express.static("."));
 const upload = multer({ dest: "uploads/" });
 const PORT = 8080;
 
-// ... Supabase Init ...
-// (Inside section 4. API Routes)
-
-// AUTH: Register User
+// 2. Auth Routes
 app.post("/register", async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const { data, error } = await supabase.from("users").insert({ email, password: hashedPassword });
-        
+        const { error } = await supabase.from("users").insert({ email, password: hashedPassword });
+
         if (error) {
             if (error.code === '23505') return res.status(400).json({ error: "User already exists" });
             throw error;
@@ -55,7 +52,6 @@ app.post("/register", async (req, res) => {
     }
 });
 
-// AUTH: Login User
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
@@ -74,20 +70,18 @@ app.post("/login", async (req, res) => {
 });
 
 // 3. Helper to call Python CLI
-
-// 3. Helper to call Python CLI
 function callPython(action, key, buffer) {
     return new Promise((resolve, reject) => {
         const py = spawn("python", ["security_cli.py", action, "--key", key]);
         let output = [];
         let errorOutput = "";
-        
+
         py.stdin.write(buffer);
         py.stdin.end();
-        
+
         py.stdout.on("data", (data) => output.push(data));
         py.stderr.on("data", (data) => errorOutput += data.toString());
-        
+
         py.on("close", (code) => {
             if (code !== 0) {
                 console.error(`❌ Python CLI Error (${action}):`, errorOutput);
@@ -99,44 +93,32 @@ function callPython(action, key, buffer) {
     });
 }
 
-// 4. API Routes
+// 4. Sealing & Verification
 app.post("/seal", upload.single("file"), async (req, res) => {
     const { owner_id } = req.query;
-    console.log(`\n--- 🛡️ New Seal Request ---`);
-    console.log(`👤 Owner: ${owner_id}`);
-
     if (!req.file || !owner_id) return res.status(400).json({ error: "Missing file or owner_id" });
 
     try {
         const fileBuffer = fs.readFileSync(req.file.path);
         const transaction_id = uuidv4();
         
-        console.log("🧬 Step 1: Generating pHash...");
         const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
         const currentPhash = phashBuffer.toString().trim();
-        console.log(`✅ pHash Generated: ${currentPhash}`);
-
-        console.log("🔒 Step 2: Applying Digital Seal...");
         const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
-        console.log("✅ Seal Applied Successfully");
 
         let originalUrl = "http://mock.com/original.png";
         let sealedUrl = "http://mock.com/sealed.png";
 
         if (!mockMode) {
-            console.log("☁️ Step 3: Uploading to Supabase Storage...");
             const originalPath = `originals/${transaction_id}_${req.file.originalname}`;
-            const { error: upError1 } = await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
-            if (upError1) throw new Error(`Storage Original: ${upError1.message}`);
+            await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
             originalUrl = supabase.storage.from("assets").getPublicUrl(originalPath).data.publicUrl;
 
             const sealedPath = `sealed/${transaction_id}_sealed.png`;
-            const { error: upError2 } = await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
-            if (upError2) throw new Error(`Storage Sealed: ${upError2.message}`);
+            await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
             sealedUrl = supabase.storage.from("assets").getPublicUrl(sealedPath).data.publicUrl;
 
-            console.log("📝 Step 4: Saving Metadata to Database...");
-            const { error: dbError } = await supabase.from("ownership").insert({
+            await supabase.from("ownership").insert({
                 owner_id,
                 transaction_id,
                 phash_value: currentPhash,
@@ -144,15 +126,13 @@ app.post("/seal", upload.single("file"), async (req, res) => {
                 sealed_url: sealedUrl,
                 created_at: new Date()
             });
-            if (dbError) throw new Error(`Database: ${dbError.message}`);
-            console.log("✅ All Operations Complete");
         }
 
         fs.unlinkSync(req.file.path);
         res.json({ status: "Success", transaction_id, original_url: originalUrl, sealed_url: sealedUrl });
 
     } catch (err) {
-        console.error("❌ Seal Sequence Failed:", err.message);
+        console.error("❌ Seal Error:", err.message);
         if (req.file) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: err.message });
     }
@@ -180,22 +160,14 @@ app.post("/verify", upload.single("file"), async (req, res) => {
 });
 
 app.get("/library", async (req, res) => {
-    console.log("--- Library Request ---");
-    if (mockMode) return res.json([{ owner_id: "Mock", created_at: new Date() }]);
-
     try {
+        if (mockMode) return res.json([]);
         const { data, error } = await supabase.from("ownership").select("*").order("created_at", { ascending: false });
         if (error) throw error;
         res.json(data);
     } catch (err) {
-        console.error("❌ Library Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// 5. Static Files (Move to the END)
-app.use(express.static("."));
-
-app.listen(PORT, () => {
-    console.log(`🚀 Supabase-Powered Backend running at http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Supabase-Powered Backend running at http://localhost:${PORT}`));

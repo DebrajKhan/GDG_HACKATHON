@@ -239,10 +239,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const response = await fetch('/library');
             const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || `Server Error: ${response.status}`);
+            }
+
             grid.innerHTML = '';
             
-            if (!data || data.length === 0) {
-                grid.innerHTML = '<div class="loading-spinner">Vault Empty.</div>';
+            if (data.length === 0) {
+                grid.innerHTML = '<div class="no-assets">Vault is empty. Seal your first asset to begin.</div>';
                 return;
             }
 
@@ -263,7 +268,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 grid.appendChild(card);
             });
         } catch (err) {
-            grid.innerHTML = '<div class="loading-spinner">Connection Error.</div>';
+            console.error('Library Load Error:', err);
+            grid.innerHTML = `<div class="error-msg">Library Error: ${err.message}</div>`;
         }
     }
 
