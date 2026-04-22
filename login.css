@@ -19,8 +19,8 @@ body {
     flex-direction: column;
     padding: 3rem 4rem;
     position: relative;
-    background: rgba(10, 10, 10, 0.4);
-    backdrop-filter: blur(5px);
+    background: rgba(5, 5, 8, 0.6);
+    backdrop-filter: blur(20px);
     border-right: 1px solid var(--glass-border);
 }
 
@@ -113,9 +113,22 @@ body {
 .login-card {
     width: 100%;
     max-width: 450px;
-    padding: 3rem !important; /* Override glass-card padding */
+    padding: 3.5rem !important;
     text-align: center;
-    background: rgba(15, 15, 10, 0.8) !important;
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--glass-noise);
+    opacity: 0.03;
+    pointer-events: none;
 }
 
 .login-header {

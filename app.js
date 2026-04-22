@@ -1,7 +1,9 @@
+console.log("🚀 VAULT VERSION 2.0 ACTIVE");
 document.addEventListener('DOMContentLoaded', () => {
     const securedFileNames = new Set();
     const securedFileHashes = new Set();
 
+    // --- UI HELPERS ---
     function showToast(message) {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -9,361 +11,218 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.className = 'toast-msg';
         toast.textContent = message;
         container.appendChild(toast);
-        
         setTimeout(() => {
             toast.classList.add('hiding');
             setTimeout(() => toast.remove(), 500);
         }, 3000);
     }
 
-    // Theme Toggling
-    const themeSwitchCheckbox = document.getElementById('theme-switch-checkbox');
-    const htmlEl = document.documentElement;
-    
-    // Check local storage or system preference
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        htmlEl.setAttribute('data-theme', savedTheme);
-        if (savedTheme === 'light') themeSwitchCheckbox.checked = true;
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        htmlEl.setAttribute('data-theme', 'light');
-        themeSwitchCheckbox.checked = true;
-    }
-
-    themeSwitchCheckbox.addEventListener('change', () => {
-        const newTheme = themeSwitchCheckbox.checked ? 'light' : 'dark';
-        htmlEl.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-    });
-
-    // Vault State Management
-    function updateVaultBtnState() {
-        const ownerInput = document.getElementById('owner-id');
-        const fileList = document.getElementById('protect-file-list');
-        const vaultBtn = document.getElementById('secure-vault-btn');
-        if (!ownerInput || !fileList || !vaultBtn) return;
-        
-        if (ownerInput.value.trim() !== '' && fileList.children.length > 0) {
-            vaultBtn.classList.remove('vault-btn-disabled');
-        } else {
-            vaultBtn.classList.add('vault-btn-disabled');
-        }
-    }
-
-    const ownerInput = document.getElementById('owner-id');
-    if (ownerInput) {
-        ownerInput.addEventListener('input', () => {
-            ownerInput.classList.remove('error-border');
-            updateVaultBtnState();
-        });
-    }
-
-    // Navigation Logic
+    // --- NAVIGATION & SIDEBAR ---
     const navBtns = document.querySelectorAll('.nav-btn');
     const sections = document.querySelectorAll('.view-section');
+    const sidebar = document.getElementById('sidebar-menu');
+    const overlay = document.getElementById('sidebar-overlay');
 
-    navBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Update active button
-            navBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Update active section
-            const targetId = btn.getAttribute('data-target');
-            sections.forEach(sec => {
-                if (sec.id === targetId) {
-                    sec.classList.add('active');
-                } else {
-                    sec.classList.remove('active');
-                }
-            });
-        });
-    });
-
-    // Sidebar Logic
-    const hamburgerBtn = document.getElementById('hamburger-btn');
-    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-    const sidebarMenu = document.getElementById('sidebar-menu');
-    const sidebarOverlay = document.getElementById('sidebar-overlay');
-
-    function toggleSidebar() {
-        sidebarMenu.classList.toggle('open');
-        sidebarOverlay.classList.toggle('open');
+    function switchView(targetId) {
+        sections.forEach(sec => sec.classList.toggle('active', sec.id === targetId));
+        navBtns.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-target') === targetId));
     }
 
-    if (hamburgerBtn) hamburgerBtn.addEventListener('click', toggleSidebar);
-    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
-    if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => switchView(btn.getAttribute('data-target')));
+    });
 
-    // Sidebar Links Actions
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
-    sidebarLinks.forEach(link => {
+    const ham = document.getElementById('hamburger-btn');
+    const close = document.getElementById('close-sidebar-btn');
+    if (ham) ham.addEventListener('click', () => { sidebar.classList.add('open'); overlay.classList.add('open'); });
+    if (close) close.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
+    if (overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
+
+    // Sidebar Library Trigger (Attaching to all instances)
+    const libraryLinks = document.querySelectorAll('[data-action="library"]');
+    console.log(`🔍 Found ${libraryLinks.length} Library Links.`);
+
+    libraryLinks.forEach((link, index) => {
         link.addEventListener('click', (e) => {
+            console.log(`🖱️ Library Link #${index + 1} Clicked!`);
             e.preventDefault();
-            const action = link.getAttribute('data-action');
-            toggleSidebar();
-            
-            setTimeout(() => {
-                switch(action) {
-                    case 'settings':
-                        showToast('Opening Settings...');
-                        break;
-                    case 'library':
-                        showToast(`Opening Library... (${securedFileNames.size} files secured)`);
-                        break;
-                    case 'help':
-                        showToast('Connecting to Support Team...');
-                        break;
-                    case 'account':
-                        showToast('Opening Account Management...');
-                        break;
-                }
-            }, 300);
+            switchView('library-section');
+            loadLibrary();
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
         });
     });
 
-    // Drag and Drop Logic Factory
+    // --- THEME TOGGLING ---
+    const themeSwitch = document.getElementById('theme-switch-checkbox');
+    if (themeSwitch) {
+        themeSwitch.addEventListener('change', () => {
+            document.documentElement.setAttribute('data-theme', themeSwitch.checked ? 'light' : 'dark');
+        });
+    }
+
+    // --- DROP ZONE & FILE LISTING ---
+    const fileStore = new Map(); // Store File objects for later upload
+
     function setupDropZone(zoneId, inputId, listId, mode) {
         const dropZone = document.getElementById(zoneId);
         const fileInput = document.getElementById(inputId);
         const fileList = document.getElementById(listId);
 
-        // Prevent default drag behaviors
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-            document.body.addEventListener(eventName, preventDefaults, false);
+        if (!dropZone || !fileInput) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        // Highlight drop zone
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.classList.add('dragover');
-            }, false);
+        ['dragenter', 'dragover'].forEach(e => {
+            dropZone.addEventListener(e, () => dropZone.classList.add('dragover'));
         });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => {
-                dropZone.classList.remove('dragover');
-            }, false);
+        ['dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, () => dropZone.classList.remove('dragover'));
         });
 
-        // Handle dropped files
-        dropZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        });
-
-        // Handle file input change
-        fileInput.addEventListener('change', function() {
-            handleFiles(this.files);
-            this.value = ''; // Reset input value to allow selecting the same file again
-        });
+        dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         function handleFiles(files) {
             Array.from(files).forEach(file => {
-                // Check if image or video
-                if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-                    alert('Please upload only images or videos.');
-                    return;
-                }
-                
-                displayFile(file);
-            });
-            
-            if (mode === 'protect') {
-                updateVaultBtnState();
-            }
-        }
+                const id = Math.random().toString(36).substr(2, 9);
+                fileStore.set(id, file);
 
-        async function displayFile(file) {
-            const size = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
-            const statusMsg = mode === 'protect' ? 'Ready to secure' : 'Computing Hash...';
-            const fileUrl = URL.createObjectURL(file);
-            const iconSvg = file.type.startsWith('image') 
-                ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'
-                : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>';
-
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
-                <div class="file-info">
-                    ${iconSvg}
-                    <div>
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.setAttribute('data-id', id);
+                item.innerHTML = `
+                    <div class="file-info">
                         <div class="file-name">${file.name}</div>
-                        <div class="file-size">
-                            ${size} <span style="margin: 0 8px; opacity: 0.5;">|</span>
-                            <a href="${fileUrl}" target="_blank" class="view-file-link">View file</a>
-                        </div>
+                        <div class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
                     </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="file-status">${statusMsg}</div>
-                    <button class="cancel-file-btn" title="Cancel" aria-label="Cancel file">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                </div>
-            `;
-            fileList.appendChild(fileItem);
+                    <div class="file-status">Ready</div>
+                    <button class="cancel-file-btn">✕</button>
+                `;
 
-            const cancelBtn = fileItem.querySelector('.cancel-file-btn');
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', () => {
-                    fileItem.style.animation = 'fadeOutUp 0.3s ease-in forwards';
-                    setTimeout(() => {
-                        fileItem.remove();
-                        URL.revokeObjectURL(fileUrl);
-                        if (mode === 'protect') {
-                            updateVaultBtnState();
-                        }
-                    }, 300);
-                });
-            }
+                item.querySelector('.cancel-file-btn').onclick = () => {
+                    item.remove();
+                    fileStore.delete(id);
+                };
 
-            // Calculate cryptographic hash
-            try {
-                const buffer = await file.arrayBuffer();
-                const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                fileItem.setAttribute('data-hash', hashHex);
-                
-                if (mode === 'verify') {
-                    const statusEl = fileItem.querySelector('.file-status');
-                    statusEl.textContent = 'Verifying...';
-                    setTimeout(() => {
-                        if (securedFileHashes.has(hashHex)) {
-                            statusEl.textContent = 'Further investigation needed';
-                            statusEl.style.color = '#ff9900';
-                        } else {
-                            statusEl.textContent = 'Authentic ✓';
-                            statusEl.style.color = '#00e676';
-                        }
-                    }, 1500);
-                }
-            } catch (error) {
-                console.error("Hashing error:", error);
-                if (mode === 'verify') {
-                    const statusEl = fileItem.querySelector('.file-status');
-                    statusEl.textContent = 'Error processing file';
-                    statusEl.style.color = '#ff3c3c';
-                }
-            }
+                fileList.appendChild(item);
+            });
         }
     }
 
-    // Initialize both zones
     setupDropZone('protect-drop-zone', 'protect-file-input', 'protect-file-list', 'protect');
     setupDropZone('verify-drop-zone', 'verify-file-input', 'verify-file-list', 'verify');
-    
-    // Set initial vault button state
-    updateVaultBtnState();
 
-    // Secure Vault Logic
+    // --- REAL BACKEND CALLS ---
+
+    // 1. Seal Assets
     const vaultBtn = document.getElementById('secure-vault-btn');
     if (vaultBtn) {
-        vaultBtn.addEventListener('click', () => {
-            const ownerInput = document.getElementById('owner-id');
-            const ownerId = ownerInput.value.trim();
+        vaultBtn.addEventListener('click', async () => {
+            const ownerId = document.getElementById('owner-id').value.trim();
             const fileList = document.getElementById('protect-file-list');
-            
-            if (fileList.children.length === 0) {
-                showToast('choose a file');
+            const items = Array.from(fileList.querySelectorAll('.file-item'));
+
+            if (!ownerId || items.length === 0) {
+                showToast("Enter Owner ID and add files!");
                 return;
             }
 
-            if (!ownerId) {
-                showToast('user name not given');
-                ownerInput.classList.add('error-border');
-                ownerInput.focus();
-                return;
-            }
-            
-            const fileItems = Array.from(fileList.querySelectorAll('.file-item'));
-            const filesData = fileItems.map(el => ({
-                name: el.querySelector('.file-name').textContent,
-                hash: el.getAttribute('data-hash')
-            }));
-            
-            const duplicates = filesData.filter(f => securedFileNames.has(f.name) || (f.hash && securedFileHashes.has(f.hash)));
-            if (duplicates.length > 0) {
-                showToast('This file already exists in the vault');
-                return;
-            }
-
-            // Simulate saving to database with animation
-            const vaultContainer = document.querySelector('.vault-container');
-            const fallingFile = document.getElementById('falling-file');
-            const statuses = fileList.querySelectorAll('.file-status');
-            
-            // 1. Hide the button (make it drop into vault)
-            vaultBtn.style.transition = 'transform 0.4s ease-in, opacity 0.4s ease-in';
-            vaultBtn.style.transform = 'translateY(40px) scale(0.5)';
-            vaultBtn.style.opacity = '0';
             vaultBtn.disabled = true;
-            
-            // Update statuses to "Protecting..."
-            statuses.forEach(statusEl => {
-                statusEl.textContent = 'Protecting...';
-                statusEl.style.color = '#00c6ff';
-            });
+            vaultBtn.textContent = "Processing...";
 
-            setTimeout(() => {
-                // 2. Drop the file
-                fallingFile.style.opacity = '1';
-                fallingFile.style.transform = 'translateY(20px)';
-                
-                setTimeout(() => {
-                    // 3. Close the lid
-                    fallingFile.style.opacity = '0';
-                    vaultContainer.classList.add('closing');
-                    
-                    // Update statuses to "Protected ✓"
-                    statuses.forEach(statusEl => {
-                        statusEl.textContent = 'Protected ✓';
-                        statusEl.style.color = '#00e676';
+            for (const item of items) {
+                const id = item.getAttribute('data-id');
+                const file = fileStore.get(id);
+                const statusEl = item.querySelector('.file-status');
+
+                statusEl.textContent = "Uploading...";
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}`, {
+                        method: 'POST',
+                        body: formData
                     });
-                    
-                    setTimeout(() => {
-                        filesData.forEach(f => {
-                            securedFileNames.add(f.name);
-                            if (f.hash) securedFileHashes.add(f.hash);
-                        });
-                        // 4. Success alert
-                        alert(`Successfully secured files under Owner ID: ${ownerId}`);
-                        
-                        // Reset
-                        fileList.innerHTML = '';
-                        document.getElementById('owner-id').value = '';
-                        updateVaultBtnState();
-                        
-                        // Reset animation states
-                        vaultContainer.classList.remove('closing');
-                        fallingFile.style.transition = 'none';
-                        fallingFile.style.transform = 'translateY(-50px)';
-                        fallingFile.style.opacity = '0';
-                        
-                        vaultBtn.style.transition = 'none';
-                        vaultBtn.style.transform = 'translateY(0) scale(1)';
-                        vaultBtn.style.opacity = '1';
-                        vaultBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> Secure Vault';
-                        vaultBtn.disabled = false;
-                        vaultBtn.style.background = '';
-                        
-                        // Restore transitions
-                        setTimeout(() => {
-                            fallingFile.style.transition = 'all 0.5s ease-in';
-                            vaultBtn.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease';
-                        }, 50);
+                    const res = await response.json();
 
-                    }, 800);
-                }, 500);
-            }, 400);
+                    if (response.ok) {
+                        statusEl.textContent = "Sealed ✓";
+                        statusEl.style.color = "#00e676";
+                    } else {
+                        statusEl.textContent = "Error";
+                        statusEl.style.color = "#ff3c3c";
+                    }
+                } catch (err) {
+                    statusEl.textContent = "Failed";
+                }
+            }
+
+            vaultBtn.disabled = false;
+            vaultBtn.textContent = "Secure Vault";
+            showToast("Vault operations complete!");
+        });
+    }
+
+    // 2. Load Library
+    async function loadLibrary() {
+        const grid = document.getElementById('library-grid');
+        grid.innerHTML = '<div class="loading-spinner">Fetching from Supabase...</div>';
+
+        try {
+            const response = await fetch('http://localhost:8080/library');
+            const data = await response.json();
+
+            grid.innerHTML = '';
+            if (!data || data.length === 0) {
+                grid.innerHTML = '<div class="loading-spinner">No assets in your vault.</div>';
+                return;
+            }
+
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'asset-card';
+                card.innerHTML = `
+                    <div class="asset-header">
+                        <span class="asset-owner">${item.owner_id}</span>
+                        <span class="asset-date">${new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="asset-id">TX: ${item.transaction_id}</div>
+                    <div class="asset-actions">
+                        <a href="${item.original_url}" target="_blank" class="btn-small btn-view-original">Original</a>
+                        <a href="${item.sealed_url}" target="_blank" class="btn-small btn-view-sealed">Sealed</a>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        } catch (err) {
+            console.error("❌ Library Fetch Error:", err);
+            grid.innerHTML = '<div class="loading-spinner">Failed to load vault. (Check Console)</div>';
+        }
+    }
+
+    // 3. Verify Asset
+    const verifyInput = document.getElementById('verify-file-input');
+    if (verifyInput) {
+        verifyInput.addEventListener('change', async () => {
+            const file = verifyInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('http://localhost:8080/verify', { method: 'POST', body: formData });
+                const result = await response.json();
+                alert(`Verification Result: ${result.status}\nOwner: ${result.owner_id || 'N/A'}`);
+            } catch (err) {
+                alert("Verification request failed.");
+            }
         });
     }
 });

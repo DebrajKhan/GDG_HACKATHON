@@ -31,18 +31,26 @@
 }
 
 .app-title {
-    font-size: 6rem;
+    font-size: 8rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
-    letter-spacing: 5px;
+    letter-spacing: -5px;
+    line-height: 0.9;
+    background: linear-gradient(135deg, #fff 0%, var(--accent-primary) 50%, var(--accent-secondary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.2));
 }
 
 .app-motto {
-    font-size: 1.8rem;
-    color: var(--accent-primary);
-    font-weight: 600;
+    font-size: 1.4rem;
+    color: var(--text-secondary);
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 12px;
+    margin-top: -1rem;
+    opacity: 0.8;
 }
 
 .dashboard-section {
@@ -55,8 +63,11 @@
 }
 
 .transparent-box {
-    background: rgba(15, 15, 10, 0.4);
-    border: 1px solid var(--accent-primary);
+    background: var(--glass-bg);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--glass-border);
+    padding: 4rem;
+    border-radius: 40px;
 }
 
 .description-text {
@@ -82,13 +93,18 @@
 }
 
 .team-member {
-    padding: 2rem;
-    transition: transform 0.3s ease;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 2.5rem;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .team-member:hover {
-    transform: translateY(-5px);
+    transform: translateY(-12px) scale(1.05);
     border-color: var(--accent-primary);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
 .team-member h3 {
