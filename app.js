@@ -16,6 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
+    // Check for login success parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('login') && urlParams.get('login') === 'success') {
+        showToast('Welcome back, Twin');
+        // Clean the URL so it doesn't show on refresh
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({path:newUrl}, '', newUrl);
+    }
+
     // Theme Toggling
     const themeSwitchCheckbox = document.getElementById('theme-switch-checkbox');
     const htmlEl = document.documentElement;
