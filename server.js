@@ -52,18 +52,24 @@ function callPython(action, key, buffer) {
     });
 }
 
-// --- BACKEND BRIDGE SCRIPT (Same as before) ---
+// --- BACKEND BRIDGE SCRIPT ---
 const BRIDGE_SCRIPT = `
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const vaultBtn = document.getElementById('secure-vault-btn');
-        const ownerInput = document.getElementById('owner-id');
-        const fileInput = document.getElementById('protect-file-input');
+        const sections = document.querySelectorAll('.view-section');
+        const navBtns = document.querySelectorAll('.nav-btn');
 
+        function switchView(targetId) {
+            sections.forEach(s => s.classList.toggle('active', s.id === targetId));
+            navBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-target') === targetId));
+        }
+
+        // 1. Vault Sealing
+        const vaultBtn = document.getElementById('secure-vault-btn');
         if (vaultBtn) {
             vaultBtn.addEventListener('click', async (e) => {
-                const ownerId = ownerInput.value.trim();
-                const file = fileInput.files[0];
+                const ownerId = document.getElementById('owner-id').value.trim();
+                const file = document.getElementById('protect-file-input').files[0];
                 if (!ownerId || !file) return;
 
                 const formData = new FormData();
@@ -75,12 +81,56 @@ const BRIDGE_SCRIPT = `
                         body: formData
                     });
                     const result = await response.json();
-                    if (response.ok) alert(\`✅ Success! Transaction ID: \${result.transaction_id}\`);
-                    else alert(\`❌ Error: \${result.error || result.status}\`);
+                    if (response.ok) alert(\`✅ Success! Registered in Supabase.\\nID: \${result.transaction_id}\`);
+                    else alert(\`❌ Error: \${result.error}\`);
                 } catch (err) { console.error(err); }
             }, true);
         }
 
+        // 2. Library Logic
+        const libraryLink = document.querySelector('[data-action="library"]');
+        const libraryGrid = document.getElementById('library-grid');
+
+        if (libraryLink) {
+            libraryLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                switchView('library-section');
+                
+                libraryGrid.innerHTML = '<div class="loading-spinner">Accessing Supabase Vault...</div>';
+
+                try {
+                    const response = await fetch('/library');
+                    const data = await response.json();
+                    
+                    libraryGrid.innerHTML = '';
+                    if (data.length === 0) {
+                        libraryGrid.innerHTML = '<div class="loading-spinner">No assets secured yet.</div>';
+                        return;
+                    }
+
+                    data.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'asset-card';
+                        card.innerHTML = \`
+                            <div class="asset-header">
+                                <span class="asset-owner">\${item.owner_id}</span>
+                                <span class="asset-date">\${new Date(item.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div class="asset-id">TX: \${item.transaction_id}</div>
+                            <div class="asset-actions">
+                                <a href="\${item.original_url}" target="_blank" class="btn-small btn-view-original">Original</a>
+                                <a href="\${item.sealed_url}" target="_blank" class="btn-small btn-view-sealed">Sealed</a>
+                            </div>
+                        \`;
+                        libraryGrid.appendChild(card);
+                    });
+                } catch (err) {
+                    libraryGrid.innerHTML = '<div class="loading-spinner">Error loading library.</div>';
+                }
+            });
+        }
+
+        // 3. Verify Logic
         const verifyInput = document.getElementById('verify-file-input');
         if (verifyInput) {
             verifyInput.addEventListener('change', async () => {
@@ -185,6 +235,39 @@ app.post("/verify", upload.single("file"), async (req, res) => {
 
     } catch (err) {
         console.error("Verify Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get("/login", (req, res) => {
+    res.sendFile(path.join(__dirname, "login.html"));
+});
+
+app.get("/dashboard", (req, res) => {
+    res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// Library Route - Fetch History from Supabase
+app.get("/library", async (req, res) => {
+    if (mockMode) {
+        return res.json([{ 
+            owner_id: "MockUser", 
+            transaction_id: "123", 
+            original_url: "#", 
+            sealed_url: "#", 
+            created_at: new Date() 
+        }]);
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from("ownership")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
