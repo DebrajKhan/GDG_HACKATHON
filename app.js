@@ -2,11 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const securedFileNames = new Set();
     const securedFileHashes = new Set();
 
-    function showToast(message) {
+    function showToast(message, color = null) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
         toast.className = 'toast-msg';
+        if (color) {
+            toast.style.backgroundColor = color;
+        }
         toast.textContent = message;
         container.appendChild(toast);
         
@@ -19,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check for login success parameter
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('login') && urlParams.get('login') === 'success') {
-        showToast('Welcome back, Twin');
+        showToast('Welcome back, Twin', 'rgba(0, 200, 83, 0.95)');
         // Clean the URL so it doesn't show on refresh
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({path:newUrl}, '', newUrl);
