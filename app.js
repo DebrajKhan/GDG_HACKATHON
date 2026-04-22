@@ -254,15 +254,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             data.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'asset-card';
+                const displayId = item.transaction_id ? item.transaction_id.substr(0, 8) : 'PENDING';
                 card.innerHTML = `
                     <div class="asset-header">
                         <span class="asset-owner">${item.owner_id}</span>
                         <span class="asset-date">${new Date(item.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div class="asset-id">ID: ${item.transaction_id.substr(0,8)}...</div>
+                    <div class="asset-id">ID: ${displayId}...</div>
                     <div class="asset-actions">
-                        <a href="${item.original_url}" target="_blank" class="btn-small">Original</a>
-                        <a href="${item.sealed_url}" target="_blank" class="btn-small btn-view-sealed">Sealed</a>
+                        <a href="${item.original_url || '#'}" target="_blank" class="btn-small">Original</a>
+                        <a href="${item.sealed_url || '#'}" target="_blank" class="btn-small btn-view-sealed">Sealed</a>
                     </div>
                 `;
                 grid.appendChild(card);
