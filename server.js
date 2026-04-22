@@ -80,14 +80,21 @@ function callPython(action, key, buffer) {
     return new Promise((resolve, reject) => {
         const py = spawn("python", ["security_cli.py", action, "--key", key]);
         let output = [];
-        let error = "";
+        let errorOutput = "";
+        
         py.stdin.write(buffer);
         py.stdin.end();
+        
         py.stdout.on("data", (data) => output.push(data));
-        py.stderr.on("data", (data) => error += data.toString());
+        py.stderr.on("data", (data) => errorOutput += data.toString());
+        
         py.on("close", (code) => {
-            if (code !== 0) reject(error || `Python process exited with code ${code}`);
-            else resolve(Buffer.concat(output));
+            if (code !== 0) {
+                console.error(`❌ Python CLI Error (${action}):`, errorOutput);
+                reject(new Error(errorOutput || `Python process exited with code ${code}`));
+            } else {
+                resolve(Buffer.concat(output));
+            }
         });
     });
 }
@@ -95,7 +102,8 @@ function callPython(action, key, buffer) {
 // 4. API Routes
 app.post("/seal", upload.single("file"), async (req, res) => {
     const { owner_id } = req.query;
-    console.log(`\n--- Seal Request: ${owner_id} ---`);
+    console.log(`\n--- 🛡️ New Seal Request ---`);
+    console.log(`👤 Owner: ${owner_id}`);
 
     if (!req.file || !owner_id) return res.status(400).json({ error: "Missing file or owner_id" });
 
@@ -103,23 +111,32 @@ app.post("/seal", upload.single("file"), async (req, res) => {
         const fileBuffer = fs.readFileSync(req.file.path);
         const transaction_id = uuidv4();
         
+        console.log("🧬 Step 1: Generating pHash...");
         const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
         const currentPhash = phashBuffer.toString().trim();
+        console.log(`✅ pHash Generated: ${currentPhash}`);
+
+        console.log("🔒 Step 2: Applying Digital Seal...");
         const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
+        console.log("✅ Seal Applied Successfully");
 
         let originalUrl = "http://mock.com/original.png";
         let sealedUrl = "http://mock.com/sealed.png";
 
         if (!mockMode) {
+            console.log("☁️ Step 3: Uploading to Supabase Storage...");
             const originalPath = `originals/${transaction_id}_${req.file.originalname}`;
-            await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
+            const { error: upError1 } = await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
+            if (upError1) throw new Error(`Storage Original: ${upError1.message}`);
             originalUrl = supabase.storage.from("assets").getPublicUrl(originalPath).data.publicUrl;
 
             const sealedPath = `sealed/${transaction_id}_sealed.png`;
-            await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
+            const { error: upError2 } = await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
+            if (upError2) throw new Error(`Storage Sealed: ${upError2.message}`);
             sealedUrl = supabase.storage.from("assets").getPublicUrl(sealedPath).data.publicUrl;
 
-            await supabase.from("ownership").insert({
+            console.log("📝 Step 4: Saving Metadata to Database...");
+            const { error: dbError } = await supabase.from("ownership").insert({
                 owner_id,
                 transaction_id,
                 phash_value: currentPhash,
@@ -127,14 +144,16 @@ app.post("/seal", upload.single("file"), async (req, res) => {
                 sealed_url: sealedUrl,
                 created_at: new Date()
             });
-            console.log("✅ Saved to Supabase");
+            if (dbError) throw new Error(`Database: ${dbError.message}`);
+            console.log("✅ All Operations Complete");
         }
 
         fs.unlinkSync(req.file.path);
         res.json({ status: "Success", transaction_id, original_url: originalUrl, sealed_url: sealedUrl });
 
     } catch (err) {
-        console.error("❌ Seal Error:", err.message);
+        console.error("❌ Seal Sequence Failed:", err.message);
+        if (req.file) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: err.message });
     }
 });

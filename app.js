@@ -200,20 +200,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 formData.append('file', file);
 
                 try {
-                    const response = await fetch(`http://localhost:8080/seal?owner_id=${encodeURIComponent(ownerId)}`, {
+                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}`, {
                         method: 'POST',
                         body: formData
                     });
+                    
+                    const result = await response.json();
+
                     if (response.ok) {
                         statusEl.textContent = "✓ Secured";
                         statusEl.style.color = "#00e676";
                         successCount++;
                     } else {
-                        statusEl.textContent = "Failed";
+                        statusEl.textContent = result.error || "Failed";
                         statusEl.style.color = "#ff3c3c";
                     }
                 } catch (err) {
-                    statusEl.textContent = "Error";
+                    statusEl.textContent = "Connection Error";
+                    statusEl.style.color = "#ff3c3c";
                 }
             }
 
@@ -233,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         grid.innerHTML = '<div class="loading-spinner">Decrypting Vault...</div>';
 
         try {
-            const response = await fetch('http://localhost:8080/library');
+            const response = await fetch('/library');
             const data = await response.json();
             grid.innerHTML = '';
             
@@ -274,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             formData.append('file', file);
 
             try {
-                const response = await fetch('http://localhost:8080/verify', { method: 'POST', body: formData });
+                const response = await fetch('/verify', { method: 'POST', body: formData });
                 const result = await response.json();
                 alert(`Verification: ${result.status}\nOwner: ${result.owner_id || 'Unknown'}`);
             } catch (err) {
