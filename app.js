@@ -99,26 +99,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarLinks = document.querySelectorAll('.sidebar-link');
     sidebarLinks.forEach(link => {
         link.addEventListener('click', (e) => {
-            e.preventDefault();
             const action = link.getAttribute('data-action');
-            toggleSidebar();
             
-            setTimeout(() => {
-                switch(action) {
-                    case 'settings':
-                        showToast('Opening Settings...');
-                        break;
-                    case 'library':
-                        showToast(`Opening Library... (${securedFileNames.size} files secured)`);
-                        break;
-                    case 'help':
-                        showToast('Connecting to Support Team...');
-                        break;
-                    case 'account':
-                        showToast('Opening Account Management...');
-                        break;
+            if (link.id === 'account-dropdown-btn') {
+                e.preventDefault();
+                const arrow = link.querySelector('.dropdown-arrow');
+                const submenu = document.getElementById('account-submenu');
+                if (submenu.style.display === 'none') {
+                    submenu.style.display = 'flex';
+                    if (arrow) arrow.textContent = '>';
+                } else {
+                    submenu.style.display = 'none';
+                    if (arrow) arrow.textContent = 'v';
                 }
-            }, 300);
+                return;
+            }
+
+            if (link.id === 'logout-btn') {
+                e.preventDefault();
+                const container = document.getElementById('toast-container');
+                if (container) {
+                    const toast = document.createElement('div');
+                    toast.className = 'toast-msg';
+                    toast.style.backgroundColor = '#ff3c3c';
+                    toast.style.color = '#fff';
+                    toast.textContent = 'Logging out...';
+                    container.appendChild(toast);
+                }
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 3000);
+                return;
+            }
+
+            if (action) {
+                e.preventDefault();
+                toggleSidebar();
+                
+                setTimeout(() => {
+                    switch(action) {
+                        case 'settings':
+                            showToast('Opening Settings...');
+                            break;
+                        case 'library':
+                            showToast(`Opening Library... (${securedFileNames.size} files secured)`);
+                            break;
+                        case 'help':
+                            showToast('Connecting to Support Team...');
+                            break;
+                        case 'account':
+                            showToast('Opening Account Management...');
+                            break;
+                    }
+                }, 300);
+            }
         });
     });
 
@@ -235,16 +269,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (mode === 'verify') {
                     const statusEl = fileItem.querySelector('.file-status');
-                    statusEl.textContent = 'Verifying...';
-                    setTimeout(() => {
-                        if (securedFileHashes.has(hashHex)) {
-                            statusEl.textContent = 'Further investigation needed';
-                            statusEl.style.color = '#ff9900';
-                        } else {
-                            statusEl.textContent = 'Authentic ✓';
+                    statusEl.textContent = 'Verifying with Backend...';
+                    
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/verify/${hashHex}`);
+                        const result = await response.json();
+                        
+                        if (result.is_authentic) {
+                            statusEl.textContent = `Authentic ✓ (Owner: ${result.owner_id})`;
                             statusEl.style.color = '#00e676';
+                        } else {
+                            statusEl.textContent = result.message;
+                            statusEl.style.color = '#ff9900';
                         }
-                    }, 1500);
+                    } catch (err) {
+                        console.error("Backend error:", err);
+                        statusEl.textContent = 'Backend unreachable';
+                        statusEl.style.color = '#ff3c3c';
+                    }
                 }
             } catch (error) {
                 console.error("Hashing error:", error);
@@ -289,14 +331,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: el.querySelector('.file-name').textContent,
                 hash: el.getAttribute('data-hash')
             }));
-            
-            const duplicates = filesData.filter(f => securedFileNames.has(f.name) || (f.hash && securedFileHashes.has(f.hash)));
-            if (duplicates.length > 0) {
-                showToast('This file already exists in the vault');
-                return;
-            }
 
-            // Simulate saving to database with animation
+            // Proceed with animation and backend save
             const vaultContainer = document.querySelector('.vault-container');
             const fallingFile = document.getElementById('falling-file');
             const statuses = fileList.querySelectorAll('.file-status');
@@ -329,13 +365,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusEl.style.color = '#00e676';
                     });
                     
-                    setTimeout(() => {
-                        filesData.forEach(f => {
-                            securedFileNames.add(f.name);
-                            if (f.hash) securedFileHashes.add(f.hash);
-                        });
+                    setTimeout(async () => {
+                        let successCount = 0;
+                        let errorCount = 0;
+                        
+                        for (const f of filesData) {
+                            try {
+                                const response = await fetch('http://localhost:8000/api/secure', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        owner_id: ownerId,
+                                        file_name: f.name,
+                                        file_hash: f.hash
+                                    })
+                                });
+                                if (response.ok) {
+                                    successCount++;
+                                    securedFileNames.add(f.name);
+                                } else {
+                                    errorCount++;
+                                }
+                            } catch (e) {
+                                console.error("Failed to secure", e);
+                                errorCount++;
+                            }
+                        }
+
                         // 4. Success alert
-                        alert(`Successfully secured files under Owner ID: ${ownerId}`);
+                        if (errorCount === 0) {
+                            alert(`Successfully secured ${successCount} files under Owner ID: ${ownerId}`);
+                        } else {
+                            alert(`Secured ${successCount} files. ${errorCount} failed (maybe already secured or backend is down).`);
+                        }
                         
                         // Reset
                         fileList.innerHTML = '';
