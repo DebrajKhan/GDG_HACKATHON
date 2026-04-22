@@ -1,247 +1,369 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Persistent State
-    const vaultHistory = [];
+    const securedFileNames = new Set();
     const securedFileHashes = new Set();
 
-    // Utility: Show Toast
-    function showToast(message, type = 'info') {
+    function showToast(message) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
         toast.className = 'toast-msg';
-        if (type === 'success') toast.style.background = 'rgba(0, 230, 118, 0.9)';
         toast.textContent = message;
         container.appendChild(toast);
+        
         setTimeout(() => {
             toast.classList.add('hiding');
             setTimeout(() => toast.remove(), 500);
         }, 3000);
     }
 
-    // --- NAVIGATION JUMP LOGIC ---
-    const navJumpBtns = document.querySelectorAll('.nav-jump-btn');
-    const sections = document.querySelectorAll('.view-section');
-
-    function jumpToSection(targetId) {
-        sections.forEach(sec => {
-            sec.classList.toggle('active', sec.id === targetId);
-        });
-        navJumpBtns.forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-target') === targetId);
-        });
-        
-        // Close sidebar if open
-        const sidebar = document.getElementById('sidebar-menu');
-        const overlay = document.getElementById('sidebar-overlay');
-        if (sidebar.classList.contains('open')) {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('open');
-        }
-    }
-
-    navJumpBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const targetId = btn.getAttribute('data-target');
-            jumpToSection(targetId);
-        });
-    });
-
     // Theme Toggling
     const themeSwitchCheckbox = document.getElementById('theme-switch-checkbox');
     const htmlEl = document.documentElement;
+    
+    // Check local storage or system preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        htmlEl.setAttribute('data-theme', savedTheme);
+        if (savedTheme === 'light') themeSwitchCheckbox.checked = true;
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        htmlEl.setAttribute('data-theme', 'light');
+        themeSwitchCheckbox.checked = true;
+    }
+
     themeSwitchCheckbox.addEventListener('change', () => {
         const newTheme = themeSwitchCheckbox.checked ? 'light' : 'dark';
         htmlEl.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
     });
 
-    // --- BATCH PROCESSING LOGIC ---
-    const protectFileInput = document.getElementById('protect-file-input');
-    const protectFileList = document.getElementById('protect-file-list');
+    // Vault State Management
+    function updateVaultBtnState() {
+        const ownerInput = document.getElementById('owner-id');
+        const fileList = document.getElementById('protect-file-list');
+        const vaultBtn = document.getElementById('secure-vault-btn');
+        if (!ownerInput || !fileList || !vaultBtn) return;
+        
+        if (ownerInput.value.trim() !== '' && fileList.children.length > 0) {
+            vaultBtn.classList.remove('vault-btn-disabled');
+        } else {
+            vaultBtn.classList.add('vault-btn-disabled');
+        }
+    }
 
-    protectFileInput.addEventListener('change', () => {
-        Array.from(protectFileInput.files).forEach(file => {
-            addFileToList(file, protectFileList, 'protect');
+    const ownerInput = document.getElementById('owner-id');
+    if (ownerInput) {
+        ownerInput.addEventListener('input', () => {
+            ownerInput.classList.remove('error-border');
+            updateVaultBtnState();
+        });
+    }
+
+    // Navigation Logic
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.view-section');
+
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Update active button
+            navBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Update active section
+            const targetId = btn.getAttribute('data-target');
+            sections.forEach(sec => {
+                if (sec.id === targetId) {
+                    sec.classList.add('active');
+                } else {
+                    sec.classList.remove('active');
+                }
+            });
         });
     });
 
-    function addFileToList(file, listEl, mode) {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        item.innerHTML = `
-            <div class="file-info">
-                <span class="file-name">${file.name}</span>
-            </div>
-            <div class="file-status">Ready</div>
-        `;
-        item.file = file; // Store file object for later
-        listEl.appendChild(item);
+    // Sidebar Logic
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const sidebarMenu = document.getElementById('sidebar-menu');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    function toggleSidebar() {
+        sidebarMenu.classList.toggle('open');
+        sidebarOverlay.classList.toggle('open');
     }
 
-    // --- SECURE VAULT (BATCH) ---
-    const secureBtn = document.getElementById('secure-vault-btn');
-    secureBtn.addEventListener('click', async () => {
-        const ownerId = document.getElementById('owner-id').value.trim();
-        const fileItems = Array.from(protectFileList.children);
+    if (hamburgerBtn) hamburgerBtn.addEventListener('click', toggleSidebar);
+    if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', toggleSidebar);
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', toggleSidebar);
 
-        if (!ownerId) return showToast("Please provide an Owner ID");
-        if (fileItems.length === 0) return showToast("No files to secure");
-
-        secureBtn.disabled = true;
-        secureBtn.textContent = "Processing Batch...";
-
-        for (const item of fileItems) {
-            const statusEl = item.querySelector('.file-status');
-            statusEl.textContent = "Sealing...";
-            statusEl.style.color = "var(--accent-primary)";
-
-            const formData = new FormData();
-            formData.append('file', item.file);
-
-            try {
-                const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-
-                if (response.ok) {
-                    statusEl.textContent = "Protected ✓";
-                    statusEl.style.color = "#00e676";
-                    addToLibrary(item.file.name, ownerId, result.transaction_id);
-                    createCertificate(item.file.name, ownerId, result.transaction_id);
-                } else {
-                    statusEl.textContent = "Failed";
-                    statusEl.style.color = "#ff3c3c";
+    // Sidebar Links Actions
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const action = link.getAttribute('data-action');
+            toggleSidebar();
+            
+            setTimeout(() => {
+                switch(action) {
+                    case 'settings':
+                        showToast('Opening Settings...');
+                        break;
+                    case 'library':
+                        showToast(`Opening Library... (${securedFileNames.size} files secured)`);
+                        break;
+                    case 'help':
+                        showToast('Connecting to Support Team...');
+                        break;
+                    case 'account':
+                        showToast('Opening Account Management...');
+                        break;
                 }
-            } catch (err) {
-                statusEl.textContent = "Error";
+            }, 300);
+        });
+    });
+
+    // Drag and Drop Logic Factory
+    function setupDropZone(zoneId, inputId, listId, mode) {
+        const dropZone = document.getElementById(zoneId);
+        const fileInput = document.getElementById(inputId);
+        const fileList = document.getElementById(listId);
+
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Highlight drop zone
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        });
+
+        // Handle file input change
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+            this.value = ''; // Reset input value to allow selecting the same file again
+        });
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                // Check if image or video
+                if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+                    alert('Please upload only images or videos.');
+                    return;
+                }
+                
+                displayFile(file);
+            });
+            
+            if (mode === 'protect') {
+                updateVaultBtnState();
             }
         }
 
-        showToast("Batch processing complete!", "success");
-        secureBtn.disabled = false;
-        secureBtn.textContent = "Secure All Files";
-    });
+        async function displayFile(file) {
+            const size = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+            const statusMsg = mode === 'protect' ? 'Ready to secure' : 'Computing Hash...';
+            const fileUrl = URL.createObjectURL(file);
+            const iconSvg = file.type.startsWith('image') 
+                ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>'
+                : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>';
 
-    // --- LIBRARY & CERTIFICATES ---
-    function addToLibrary(name, owner, txId) {
-        const grid = document.getElementById('library-grid');
-        const empty = grid.querySelector('.empty-state');
-        if (empty) empty.remove();
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    ${iconSvg}
+                    <div>
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">
+                            ${size} <span style="margin: 0 8px; opacity: 0.5;">|</span>
+                            <a href="${fileUrl}" target="_blank" class="view-file-link">View file</a>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="file-status">${statusMsg}</div>
+                    <button class="cancel-file-btn" title="Cancel" aria-label="Cancel file">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            `;
+            fileList.appendChild(fileItem);
 
-        const card = document.createElement('div');
-        card.className = 'asset-card';
-        card.innerHTML = `
-            <div class="card-header">
-                <span class="card-title">${name}</span>
-                <span class="badge">SECURED</span>
-            </div>
-            <div class="card-meta">Owner: ${owner}<br>ID: ${txId.substring(0, 8)}...</div>
-            <div class="card-actions">
-                <a href="#" class="btn-small btn-outline share-btn" data-name="${name}">Share Status</a>
-            </div>
-        `;
-        grid.appendChild(card);
+            const cancelBtn = fileItem.querySelector('.cancel-file-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    fileItem.style.animation = 'fadeOutUp 0.3s ease-in forwards';
+                    setTimeout(() => {
+                        fileItem.remove();
+                        URL.revokeObjectURL(fileUrl);
+                        if (mode === 'protect') {
+                            updateVaultBtnState();
+                        }
+                    }, 300);
+                });
+            }
 
-        card.querySelector('.share-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            const text = encodeURIComponent(`I just secured my asset "${name}" in the Digital Vault! 🛡️ #Hackathon #CyberSecurity`);
-            window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+            // Calculate cryptographic hash
+            try {
+                const buffer = await file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                fileItem.setAttribute('data-hash', hashHex);
+                
+                if (mode === 'verify') {
+                    const statusEl = fileItem.querySelector('.file-status');
+                    statusEl.textContent = 'Verifying...';
+                    setTimeout(() => {
+                        if (securedFileHashes.has(hashHex)) {
+                            statusEl.textContent = 'Further investigation needed';
+                            statusEl.style.color = '#ff9900';
+                        } else {
+                            statusEl.textContent = 'Authentic ✓';
+                            statusEl.style.color = '#00e676';
+                        }
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error("Hashing error:", error);
+                if (mode === 'verify') {
+                    const statusEl = fileItem.querySelector('.file-status');
+                    statusEl.textContent = 'Error processing file';
+                    statusEl.style.color = '#ff3c3c';
+                }
+            }
+        }
+    }
+
+    // Initialize both zones
+    setupDropZone('protect-drop-zone', 'protect-file-input', 'protect-file-list', 'protect');
+    setupDropZone('verify-drop-zone', 'verify-file-input', 'verify-file-list', 'verify');
+    
+    // Set initial vault button state
+    updateVaultBtnState();
+
+    // Secure Vault Logic
+    const vaultBtn = document.getElementById('secure-vault-btn');
+    if (vaultBtn) {
+        vaultBtn.addEventListener('click', () => {
+            const ownerInput = document.getElementById('owner-id');
+            const ownerId = ownerInput.value.trim();
+            const fileList = document.getElementById('protect-file-list');
+            
+            if (fileList.children.length === 0) {
+                showToast('choose a file');
+                return;
+            }
+
+            if (!ownerId) {
+                showToast('user name not given');
+                ownerInput.classList.add('error-border');
+                ownerInput.focus();
+                return;
+            }
+            
+            const fileItems = Array.from(fileList.querySelectorAll('.file-item'));
+            const filesData = fileItems.map(el => ({
+                name: el.querySelector('.file-name').textContent,
+                hash: el.getAttribute('data-hash')
+            }));
+            
+            const duplicates = filesData.filter(f => securedFileNames.has(f.name) || (f.hash && securedFileHashes.has(f.hash)));
+            if (duplicates.length > 0) {
+                showToast('This file already exists in the vault');
+                return;
+            }
+
+            // Simulate saving to database with animation
+            const vaultContainer = document.querySelector('.vault-container');
+            const fallingFile = document.getElementById('falling-file');
+            const statuses = fileList.querySelectorAll('.file-status');
+            
+            // 1. Hide the button (make it drop into vault)
+            vaultBtn.style.transition = 'transform 0.4s ease-in, opacity 0.4s ease-in';
+            vaultBtn.style.transform = 'translateY(40px) scale(0.5)';
+            vaultBtn.style.opacity = '0';
+            vaultBtn.disabled = true;
+            
+            // Update statuses to "Protecting..."
+            statuses.forEach(statusEl => {
+                statusEl.textContent = 'Protecting...';
+                statusEl.style.color = '#00c6ff';
+            });
+
+            setTimeout(() => {
+                // 2. Drop the file
+                fallingFile.style.opacity = '1';
+                fallingFile.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    // 3. Close the lid
+                    fallingFile.style.opacity = '0';
+                    vaultContainer.classList.add('closing');
+                    
+                    // Update statuses to "Protected ✓"
+                    statuses.forEach(statusEl => {
+                        statusEl.textContent = 'Protected ✓';
+                        statusEl.style.color = '#00e676';
+                    });
+                    
+                    setTimeout(() => {
+                        filesData.forEach(f => {
+                            securedFileNames.add(f.name);
+                            if (f.hash) securedFileHashes.add(f.hash);
+                        });
+                        // 4. Success alert
+                        alert(`Successfully secured files under Owner ID: ${ownerId}`);
+                        
+                        // Reset
+                        fileList.innerHTML = '';
+                        document.getElementById('owner-id').value = '';
+                        updateVaultBtnState();
+                        
+                        // Reset animation states
+                        vaultContainer.classList.remove('closing');
+                        fallingFile.style.transition = 'none';
+                        fallingFile.style.transform = 'translateY(-50px)';
+                        fallingFile.style.opacity = '0';
+                        
+                        vaultBtn.style.transition = 'none';
+                        vaultBtn.style.transform = 'translateY(0) scale(1)';
+                        vaultBtn.style.opacity = '1';
+                        vaultBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: middle;"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> Secure Vault';
+                        vaultBtn.disabled = false;
+                        vaultBtn.style.background = '';
+                        
+                        // Restore transitions
+                        setTimeout(() => {
+                            fallingFile.style.transition = 'all 0.5s ease-in';
+                            vaultBtn.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease';
+                        }, 50);
+
+                    }, 800);
+                }, 500);
+            }, 400);
         });
     }
-
-    function createCertificate(name, owner, txId) {
-        const container = document.getElementById('certificate-container');
-        const empty = container.querySelector('.empty-state');
-        if (empty) empty.remove();
-
-        const cert = document.createElement('div');
-        cert.className = 'cert-card';
-        cert.innerHTML = `
-            <div class="card-title">Certificate of Authenticity</div>
-            <div class="card-meta">
-                <strong>Asset:</strong> ${name}<br>
-                <strong>Owner:</strong> ${owner}<br>
-                <strong>Transaction:</strong> ${txId}<br>
-                <strong>Date:</strong> ${new Date().toLocaleDateString()}
-            </div>
-            <div class="card-actions">
-                <button class="btn-small btn-outline" onclick="window.print()">Download PDF</button>
-            </div>
-        `;
-        container.appendChild(cert);
-    }
-
-    // --- VERIFY & TAMPER MAP ---
-    const verifyInput = document.getElementById('verify-file-input');
-    verifyInput.addEventListener('change', async () => {
-        const file = verifyInput.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        showToast("Analyzing pixel integrity...");
-        
-        try {
-            const response = await fetch('/verify', { method: 'POST', body: formData });
-            const result = await response.json();
-            
-            displayTamperMap(file, result.status === 'Verified');
-        } catch (err) {
-            showToast("Verification failed", "error");
-        }
-    });
-
-    function displayTamperMap(file, isAuthentic) {
-        const container = document.getElementById('tamper-map-container');
-        const resultBadge = document.getElementById('tamper-result-msg');
-        container.style.display = 'block';
-
-        resultBadge.textContent = isAuthentic ? "AUTHENTICITY VERIFIED ✓" : "TAMPERING DETECTED ⚠";
-        resultBadge.style.background = isAuthentic ? "rgba(0, 230, 118, 0.2)" : "rgba(255, 60, 60, 0.2)";
-        resultBadge.style.color = isAuthentic ? "#00e676" : "#ff3c3c";
-
-        // Load image into canvases
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvasOrig = document.getElementById('canvas-original');
-                const canvasHeat = document.getElementById('canvas-heatmap');
-                
-                [canvasOrig, canvasHeat].forEach(c => {
-                    c.width = img.width;
-                    c.height = img.height;
-                });
-
-                const ctxOrig = canvasOrig.getContext('2d');
-                ctxOrig.drawImage(img, 0, 0);
-
-                const ctxHeat = canvasHeat.getContext('2d');
-                ctxHeat.drawImage(img, 0, 0);
-                
-                if (!isAuthentic) {
-                    // Simulate heatmap for demonstration if tampered
-                    ctxHeat.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                    for(let i=0; i<20; i++) {
-                        ctxHeat.fillRect(Math.random()*img.width, Math.random()*img.height, 50, 50);
-                    }
-                }
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    }
-
-    // Sidebar Toggle
-    const ham = document.getElementById('hamburger-btn');
-    const close = document.getElementById('close-sidebar-btn');
-    const sidebar = document.getElementById('sidebar-menu');
-    const overlay = document.getElementById('sidebar-overlay');
-
-    if (ham) ham.addEventListener('click', () => { sidebar.classList.add('open'); overlay.classList.add('open'); });
-    if (close) close.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
-    if (overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
 });
