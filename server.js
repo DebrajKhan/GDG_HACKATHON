@@ -15,7 +15,7 @@ const PRIVATE_KEY = process.env.OWNERSHIP_PRIVATE_KEY || "SUPER_SECRET_KEY_123";
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(".")); // Serve frontend
+app.use(express.static(".")); // Serve frontend assets (CSS, JS, Images)
 
 // Helper to call Python CLI
 function callPython(action, key, buffer) {
@@ -37,30 +37,108 @@ function callPython(action, key, buffer) {
     });
 }
 
+// --- BACKEND BRIDGE SCRIPT ---
+// This script is injected into index.html to connect the UI to the real backend
+const BRIDGE_SCRIPT = `
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log("🚀 Backend Bridge Active");
+
+        // 1. Hook into the "Secure Vault" button
+        const vaultBtn = document.getElementById('secure-vault-btn');
+        const ownerInput = document.getElementById('owner-id');
+        const fileInput = document.getElementById('protect-file-input');
+
+        if (vaultBtn) {
+            vaultBtn.addEventListener('click', async (e) => {
+                const ownerId = ownerInput.value.trim();
+                const file = fileInput.files[0];
+
+                if (!ownerId || !file) return; // Let app.js show its alerts
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    console.log("Sealing file via backend...");
+                    const response = await fetch(\`/seal?owner_id=\${encodeURIComponent(ownerId)}\`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        console.log("✅ Successfully sealed:", result.transaction_id);
+                    } else {
+                        console.error("❌ Sealing failed:", result.error || result.status);
+                    }
+                } catch (err) {
+                    console.error("❌ Connection error:", err);
+                }
+            }, true); // Use capture phase to run before app.js simulation
+        }
+
+        // 2. Hook into the "Verify" input
+        const verifyInput = document.getElementById('verify-file-input');
+        if (verifyInput) {
+            verifyInput.addEventListener('change', async () => {
+                const file = verifyInput.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    console.log("Verifying file via backend...");
+                    const response = await fetch('/verify', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    
+                    // We can show a custom toast with the result
+                    const status = result.status === 'Verified' ? '✅ Authenticity Verified' : '❌ Tampering Detected';
+                    const msg = result.status === 'Verified' ? \`Owner: \${result.owner_id}\` : result.message;
+                    
+                    alert(\`Verification Result:\\n\${status}\\n\${msg}\`);
+                } catch (err) {
+                    console.error("❌ Verification error:", err);
+                }
+            });
+        }
+    });
+</script>
+`;
+
 // Routes
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
+    let content = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+    content = content.replace("</body>", BRIDGE_SCRIPT + "</body>");
+    res.send(content);
 });
 
+app.get("/login", (req, res) => {
+    res.sendFile(path.join(__dirname, "login.html"));
+});
+
+app.get("/dashboard", (req, res) => {
+    res.sendFile(path.join(__dirname, "dashboard.html"));
+});
+
+// API Routes
 app.post("/seal", upload.single("file"), async (req, res) => {
     const { owner_id } = req.query;
     if (!req.file || !owner_id) return res.status(400).json({ error: "Missing file or owner_id" });
 
     try {
         const fileBuffer = fs.readFileSync(req.file.path);
-
-        // 1. Get phash from Python
         const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
         const currentPhash = phashBuffer.toString().trim();
 
-        // 2. Check duplicates in Firestore
         if (!mockMode) {
             const snapshot = await db.collection("ownership").get();
-            // Note: In real setup, use specialized index. This is a simple linear search for demo.
             for (const doc of snapshot.docs) {
                 const existing = doc.data();
-                // Simple exact match or logic here. 
-                // For Hamming distance, we'd ideally do it in Node or Python.
                 if (existing.pHash_value === currentPhash) {
                     fs.unlinkSync(req.file.path);
                     return res.status(409).json({
@@ -72,20 +150,15 @@ app.post("/seal", upload.single("file"), async (req, res) => {
             }
         }
 
-        // 3. Apply Seal via Python
         const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
         const transaction_id = uuidv4();
-        const sealedPath = `sealed_${transaction_id}.png`;
-        fs.writeFileSync(sealedPath, sealedBuffer);
-
-        // 4. Upload to Storage
+        
         let storageUrl = "http://mockstorage.com/demo.png";
         if (!mockMode) {
             const blob = bucket.file(`sealed/${transaction_id}.png`);
             await blob.save(sealedBuffer, { contentType: "image/png" });
             storageUrl = `https://storage.googleapis.com/${bucket.name}/sealed/${transaction_id}.png`;
             
-            // Save Metadata
             await db.collection("ownership").doc(transaction_id).set({
                 owner_id,
                 pHash_value: currentPhash,
@@ -94,10 +167,7 @@ app.post("/seal", upload.single("file"), async (req, res) => {
             });
         }
 
-        // Cleanup
         fs.unlinkSync(req.file.path);
-        if (fs.existsSync(sealedPath)) fs.unlinkSync(sealedPath);
-
         res.json({
             status: "Sealed & Registered",
             transaction_id,
@@ -116,8 +186,6 @@ app.post("/verify", upload.single("file"), async (req, res) => {
 
     try {
         const fileBuffer = fs.readFileSync(req.file.path);
-
-        // 1. Recover hash using Python unseal action
         const recoveredHashBuffer = await callPython("unseal", PRIVATE_KEY, fileBuffer);
         const recoveredHash = recoveredHashBuffer.toString().trim();
 
@@ -129,9 +197,7 @@ app.post("/verify", upload.single("file"), async (req, res) => {
             });
         }
 
-        // 2. Lookup in Firestore
         const query = await db.collection("ownership").where("pHash_value", "==", recoveredHash).limit(1).get();
-        
         fs.unlinkSync(req.file.path);
 
         if (query.empty) {
@@ -139,11 +205,7 @@ app.post("/verify", upload.single("file"), async (req, res) => {
         }
 
         const data = query.docs[0].data();
-        res.json({
-            status: "Verified",
-            owner_id: data.owner_id,
-            transaction_id: data.transaction_id
-        });
+        res.json({ status: "Verified", owner_id: data.owner_id, transaction_id: data.transaction_id });
 
     } catch (err) {
         console.error(err);
@@ -152,5 +214,5 @@ app.post("/verify", upload.single("file"), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Node.js Backend running at http://localhost:${PORT}`);
+    console.log(`🚀 Hybrid Backend running at http://localhost:${PORT}`);
 });
