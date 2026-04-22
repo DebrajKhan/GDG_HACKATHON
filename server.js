@@ -5,17 +5,32 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
-const { db, bucket, mockMode, admin } = require("./firebaseConfig");
+const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
 const PORT = 8000;
+
+// Supabase Initialization
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const PRIVATE_KEY = process.env.OWNERSHIP_PRIVATE_KEY || "SUPER_SECRET_KEY_123";
+
+let supabase;
+let mockMode = false;
+
+if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("your-project-id")) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("✅ Supabase Connected");
+} else {
+    console.warn("⚠️ Supabase credentials missing or default. Entering MOCK MODE.");
+    mockMode = true;
+}
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(".")); // Serve frontend assets (CSS, JS, Images)
+app.use(express.static("."));
 
 // Helper to call Python CLI
 function callPython(action, key, buffer) {
@@ -37,14 +52,10 @@ function callPython(action, key, buffer) {
     });
 }
 
-// --- BACKEND BRIDGE SCRIPT ---
-// This script is injected into index.html to connect the UI to the real backend
+// --- BACKEND BRIDGE SCRIPT (Same as before) ---
 const BRIDGE_SCRIPT = `
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        console.log("🚀 Backend Bridge Active");
-
-        // 1. Hook into the "Secure Vault" button
         const vaultBtn = document.getElementById('secure-vault-btn');
         const ownerInput = document.getElementById('owner-id');
         const fileInput = document.getElementById('protect-file-input');
@@ -53,130 +64,99 @@ const BRIDGE_SCRIPT = `
             vaultBtn.addEventListener('click', async (e) => {
                 const ownerId = ownerInput.value.trim();
                 const file = fileInput.files[0];
-
-                if (!ownerId || !file) return; // Let app.js show its alerts
+                if (!ownerId || !file) return;
 
                 const formData = new FormData();
                 formData.append('file', file);
 
                 try {
-                    console.log("Sealing file via backend...");
                     const response = await fetch(\`/seal?owner_id=\${encodeURIComponent(ownerId)}\`, {
                         method: 'POST',
                         body: formData
                     });
                     const result = await response.json();
-                    
-                    if (response.ok) {
-                        console.log("✅ Successfully sealed:", result.transaction_id);
-                    } else {
-                        console.error("❌ Sealing failed:", result.error || result.status);
-                    }
-                } catch (err) {
-                    console.error("❌ Connection error:", err);
-                }
-            }, true); // Use capture phase to run before app.js simulation
+                    if (response.ok) alert(\`✅ Success! Transaction ID: \${result.transaction_id}\`);
+                    else alert(\`❌ Error: \${result.error || result.status}\`);
+                } catch (err) { console.error(err); }
+            }, true);
         }
 
-        // 2. Hook into the "Verify" input
         const verifyInput = document.getElementById('verify-file-input');
         if (verifyInput) {
             verifyInput.addEventListener('change', async () => {
                 const file = verifyInput.files[0];
                 if (!file) return;
-
                 const formData = new FormData();
                 formData.append('file', file);
-
                 try {
-                    console.log("Verifying file via backend...");
-                    const response = await fetch('/verify', {
-                        method: 'POST',
-                        body: formData
-                    });
+                    const response = await fetch('/verify', { method: 'POST', body: formData });
                     const result = await response.json();
-                    
-                    // We can show a custom toast with the result
-                    const status = result.status === 'Verified' ? '✅ Authenticity Verified' : '❌ Tampering Detected';
-                    const msg = result.status === 'Verified' ? \`Owner: \${result.owner_id}\` : result.message;
-                    
-                    alert(\`Verification Result:\\n\${status}\\n\${msg}\`);
-                } catch (err) {
-                    console.error("❌ Verification error:", err);
-                }
+                    alert(\`Verification Result: \${result.status}\\nOwner: \${result.owner_id || 'N/A'}\`);
+                } catch (err) { console.error(err); }
             });
         }
     });
 </script>
 `;
 
-// Routes
 app.get("/", (req, res) => {
     let content = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
     content = content.replace("</body>", BRIDGE_SCRIPT + "</body>");
     res.send(content);
 });
 
-app.get("/login", (req, res) => {
-    res.sendFile(path.join(__dirname, "login.html"));
-});
-
-app.get("/dashboard", (req, res) => {
-    res.sendFile(path.join(__dirname, "dashboard.html"));
-});
-
-// API Routes
+// Main Sealing Route
 app.post("/seal", upload.single("file"), async (req, res) => {
     const { owner_id } = req.query;
     if (!req.file || !owner_id) return res.status(400).json({ error: "Missing file or owner_id" });
 
     try {
         const fileBuffer = fs.readFileSync(req.file.path);
-        const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
-        const currentPhash = phashBuffer.toString().trim();
-
-        if (!mockMode) {
-            const snapshot = await db.collection("ownership").get();
-            for (const doc of snapshot.docs) {
-                const existing = doc.data();
-                if (existing.pHash_value === currentPhash) {
-                    fs.unlinkSync(req.file.path);
-                    return res.status(409).json({
-                        status: "Already Claimed",
-                        owner_id: existing.owner_id,
-                        timestamp: existing.timestamp?.toDate()
-                    });
-                }
-            }
-        }
-
-        const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
         const transaction_id = uuidv4();
         
-        let storageUrl = "http://mockstorage.com/demo.png";
+        // 1. Process Logic via Python
+        const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
+        const currentPhash = phashBuffer.toString().trim();
+        const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
+
+        let originalUrl = "http://mock.com/original.png";
+        let sealedUrl = "http://mock.com/sealed.png";
+
         if (!mockMode) {
-            const blob = bucket.file(`sealed/${transaction_id}.png`);
-            await blob.save(sealedBuffer, { contentType: "image/png" });
-            storageUrl = `https://storage.googleapis.com/${bucket.name}/sealed/${transaction_id}.png`;
-            
-            await db.collection("ownership").doc(transaction_id).set({
+            // 2. Upload Original Image
+            const originalPath = `originals/${transaction_id}_${req.file.originalname}`;
+            await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
+            originalUrl = supabase.storage.from("assets").getPublicUrl(originalPath).data.publicUrl;
+
+            // 3. Upload Sealed Image
+            const sealedPath = `sealed/${transaction_id}_sealed.png`;
+            await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
+            sealedUrl = supabase.storage.from("assets").getPublicUrl(sealedPath).data.publicUrl;
+
+            // 4. Save Metadata to DB
+            const { error } = await supabase.table("ownership").insert({
                 owner_id,
-                pHash_value: currentPhash,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                transaction_id
+                transaction_id,
+                phash_value: currentPhash,
+                original_url: originalUrl,
+                sealed_url: sealedUrl,
+                created_at: new Date()
             });
+            if (error) throw error;
         }
 
+        // Cleanup
         fs.unlinkSync(req.file.path);
+
         res.json({
-            status: "Sealed & Registered",
+            status: "Sealed & Registered in Supabase",
             transaction_id,
-            pHash: currentPhash,
-            storage_url: storageUrl
+            original_url: originalUrl,
+            sealed_url: sealedUrl
         });
 
     } catch (err) {
-        console.error(err);
+        console.error("Seal Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -190,29 +170,25 @@ app.post("/verify", upload.single("file"), async (req, res) => {
         const recoveredHash = recoveredHashBuffer.toString().trim();
 
         if (mockMode) {
-            return res.json({
-                status: "Verified",
-                owner_id: "MOCK_OWNER",
-                transaction_id: "MOCK_TXN_123"
-            });
+            return res.json({ status: "Verified", owner_id: "MOCK_OWNER", transaction_id: "MOCK_TXN_123" });
         }
 
-        const query = await db.collection("ownership").where("pHash_value", "==", recoveredHash).limit(1).get();
+        // Search Supabase
+        const { data, error } = await supabase.table("ownership").select("*").eq("phash_value", recoveredHash).single();
         fs.unlinkSync(req.file.path);
 
-        if (query.empty) {
+        if (error || !data) {
             return res.status(404).json({ status: "Tampered or Unregistered", message: "No ownership record found." });
         }
 
-        const data = query.docs[0].data();
-        res.json({ status: "Verified", owner_id: data.owner_id, transaction_id: data.transaction_id });
+        res.json({ status: "Verified", owner_id: data.owner_id, transaction_id: data.transaction_id, original_url: data.original_url });
 
     } catch (err) {
-        console.error(err);
+        console.error("Verify Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Hybrid Backend running at http://localhost:${PORT}`);
+    console.log(`🚀 Supabase-Powered Backend running at http://localhost:${PORT}`);
 });
