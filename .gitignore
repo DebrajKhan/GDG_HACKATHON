@@ -1,0 +1,11 @@
+# Environment Variables
+.env
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Project specific
+uploads/
+.DS_Store

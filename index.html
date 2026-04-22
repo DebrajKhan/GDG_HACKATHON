@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AquaGuard | Digital Watermarking & Protection</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <nav>
+        <div class="nav-content">
+            <div class="logo">
+                <img src="/static/logo.png" alt="AquaGuard Logo" class="logo-img">
+                <span class="brand-name">AquaGuard</span>
+            </div>
+            <div class="nav-links">
+                <button onclick="showSection('seal')" class="nav-btn active" id="btn-seal">Seal Asset</button>
+                <button onclick="showSection('verify')" class="nav-btn" id="btn-verify">Verify Ownership</button>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Seal Section -->
+        <section id="seal-section" class="active">
+            <div class="header-content">
+                <h1>Seal Your Identity</h1>
+                <p>Protect your visual assets with immutable, pixel-level encryption and perceptual fingerprinting.</p>
+            </div>
+
+            <div class="glass-card">
+                <div class="input-group">
+                    <label for="owner-id">Owner ID / Name</label>
+                    <input type="text" id="owner-id" placeholder="e.g. Creator_01" required>
+                </div>
+                
+                <div class="upload-area" id="seal-drop-zone">
+                    <input type="file" id="seal-file-input" hidden accept="image/*">
+                    <div class="upload-content">
+                        <div class="upload-icon">↑</div>
+                        <p>Click or Drag Image to Seal</p>
+                        <span class="file-info" id="seal-file-name">No file selected</span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="primary-btn" onclick="handleSeal()">Generate Immutable Seal</button>
+                </div>
+
+                <div id="seal-result" class="result-box hidden">
+                    <div class="loader-container">
+                        <div class="loader"></div>
+                        <p>Calculating pHash & Applying Seal...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Verify Section -->
+        <section id="verify-section">
+            <div class="header-content">
+                <h1>Verify Authenticity</h1>
+                <p>Upload a sealed asset to check its integrity and ownership status.</p>
+            </div>
+
+            <div class="glass-card">
+                <div class="upload-area" id="verify-drop-zone">
+                    <input type="file" id="verify-file-input" hidden accept="image/*">
+                    <div class="upload-content">
+                        <div class="upload-icon">🔐</div>
+                        <p>Upload Sealed Asset for Verification</p>
+                        <span class="file-info" id="verify-file-name">No file selected</span>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="secondary-btn" onclick="handleVerify()">Scan & Verify Seal</button>
+                </div>
+
+                <div id="verify-result" class="result-box hidden">
+                    <!-- Result will be injected here -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
