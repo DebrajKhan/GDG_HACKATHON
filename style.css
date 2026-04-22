@@ -953,12 +953,13 @@ h3,
     color: var(--accent-primary);
 }
 
-font-family: monospace;
-font-size: 0.75rem;
-background: rgba(0, 0, 0, 0.3);
-padding: 4px 8px;
-border-radius: 6px;
-word-break: break-all;
+.asset-id {
+    font-family: monospace;
+    font-size: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 6px;
+    word-break: break-all;
 }
 
 .asset-actions {
