@@ -1,6 +1,29 @@
-console.log("🚀 VAULT VERSION 3.0 - SYNCED & SECURED");
+console.log("🚀 VAULT VERSION 3.1 - SYNCED & SECURED");
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize Supabase
+const SUPABASE_URL = "https://coddjlrywyojgdmfkuph.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZGRqbHJ5d3lvamdkbWZrdXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjgxMDMsImV4cCI6MjA5MjQ0NDEwM30.wXavTOBoYco3WE1iI3RRXKdZX5WKejQUV_AO3BhvftY";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // --- AUTH SESSION CHECK ---
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    
+    if (!session) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    // Update Profile UI
+    const profileName = document.querySelector('.profile-info h3');
+    const profileSub = document.querySelector('.profile-info p');
+    if (profileName) profileName.textContent = session.user.email.split('@')[0];
+    if (profileSub) profileSub.textContent = session.user.email;
+    
+    // Pre-fill Owner ID
+    const ownerIdInput = document.getElementById('owner-id');
+    if (ownerIdInput) ownerIdInput.value = session.user.email.split('@')[0];
+
     const securedFileNames = new Set();
     const fileStore = new Map();
 
@@ -58,10 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Logout Logic
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
+        logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             showToast('Logging out...', '#ff3c3c');
-            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+            await supabaseClient.auth.signOut();
+            setTimeout(() => { window.location.href = 'login.html'; }, 1000);
         });
     }
 

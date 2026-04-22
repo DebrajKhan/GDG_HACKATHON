@@ -9,7 +9,27 @@ const bcrypt = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
+// 1. Supabase Initialization
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const PRIVATE_KEY = process.env.OWNERSHIP_PRIVATE_KEY || "SUPER_SECRET_KEY_123";
+
+let supabase;
+let mockMode = false;
+
+if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("your-project-id")) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log("✅ Supabase Connected");
+} else {
+    console.warn("⚠️ Supabase credentials missing or default. Entering MOCK MODE.");
+    mockMode = true;
+}
+
 const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static("."));
+
 const upload = multer({ dest: "uploads/" });
 const PORT = 8080;
 
@@ -53,25 +73,7 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// 1. Supabase Initialization
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const PRIVATE_KEY = process.env.OWNERSHIP_PRIVATE_KEY || "SUPER_SECRET_KEY_123";
-
-let supabase;
-let mockMode = false;
-
-if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("your-project-id")) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("✅ Supabase Connected");
-} else {
-    console.warn("⚠️ Supabase credentials missing or default. Entering MOCK MODE.");
-    mockMode = true;
-}
-
-// 2. Middleware
-app.use(cors());
-app.use(express.json());
+// 3. Helper to call Python CLI
 
 // 3. Helper to call Python CLI
 function callPython(action, key, buffer) {

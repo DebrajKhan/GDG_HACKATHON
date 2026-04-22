@@ -117,15 +117,24 @@
         }
     </style>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // Initialize Supabase
+        const SUPABASE_URL = "https://coddjlrywyojgdmfkuph.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZGRqbHJ5d3lvamdkbWZrdXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjgxMDMsImV4cCI6MjA5MjQ0NDEwM30.wXavTOBoYco3WE1iI3RRXKdZX5WKejQUV_AO3BhvftY";
+        
+        // Use the global 'supabase' object to create the client
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const loginForm = document.querySelector('.login-form');
+        const googleBtn = document.querySelector('.google-btn');
         const submitBtn = loginForm.querySelector('button');
         const signupLink = document.querySelector('.signup-link');
         const welcomeTitle = document.querySelector('.welcome-title');
         const welcomeSubtitle = document.querySelector('.welcome-subtitle');
         let isSignup = false;
 
-        // Toggle Signup/Login
+        // --- TOGGLE MODE ---
         signupLink.addEventListener('click', (e) => {
             e.preventDefault();
             isSignup = !isSignup;
@@ -135,44 +144,58 @@
             signupLink.textContent = isSignup ? "Log in instead" : "Sign up";
         });
 
+        // --- GOOGLE LOGIN ---
+        googleBtn.addEventListener('click', async () => {
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + '/index.html' }
+            });
+            if (error) alert("Google Auth Error: " + error.message);
+        });
+
+        // --- EMAIL/PASS LOGIN & REGISTER ---
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const endpoint = isSignup ? 'register' : 'login';
 
-            submitBtn.textContent = "VERIFYING CREDENTIALS...";
+            submitBtn.textContent = isSignup ? "CREATING ACCOUNT..." : "VERIFYING IDENTITY...";
             submitBtn.disabled = true;
-            
+
             try {
-                const response = await fetch(`http://localhost:8080/${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    if (isSignup) {
-                        alert("Account Created! You can now sign in.");
-                        isSignup = false;
-                        location.reload();
-                    } else {
-                        // Store user session (simple)
-                        localStorage.setItem('vault_user', JSON.stringify(result.user));
-                        window.location.href = 'index.html';
-                    }
+                if (isSignup) {
+                    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    
+                    // Sync with our public users table
+                    await supabaseClient.from('users').insert([{ email, last_login: new Date() }]);
+                    
+                    // If signup is successful, Supabase usually logs you in automatically
+                    window.location.href = 'index.html';
                 } else {
-                    alert(result.error || "Authentication Failed.");
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+
+                    // Update 'last_login' 
+                    await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
+                    
+                    window.location.href = 'index.html';
                 }
             } catch (err) {
-                alert("Server Connection Error. Is the backend running?");
+                alert("Auth Error: " + err.message);
             } finally {
                 submitBtn.textContent = isSignup ? "Create Vault Access" : "Sign In";
                 submitBtn.disabled = false;
             }
         });
+
+        // --- AUTO-RETRIEVE SESSION ---
+        window.onload = async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                window.location.href = 'index.html';
+            }
+        };
     </script>
 </body>
 
