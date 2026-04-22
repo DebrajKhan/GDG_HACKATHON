@@ -1,20 +1,30 @@
-console.log("🚀 VAULT VERSION 2.0 ACTIVE");
+console.log("🚀 VAULT VERSION 3.0 - SYNCED & SECURED");
+
 document.addEventListener('DOMContentLoaded', () => {
     const securedFileNames = new Set();
-    const securedFileHashes = new Set();
+    const fileStore = new Map();
 
     // --- UI HELPERS ---
-    function showToast(message) {
+    function showToast(message, color = null) {
         const container = document.getElementById('toast-container');
         if (!container) return;
         const toast = document.createElement('div');
         toast.className = 'toast-msg';
+        if (color) toast.style.backgroundColor = color;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => {
             toast.classList.add('hiding');
             setTimeout(() => toast.remove(), 500);
         }, 3000);
+    }
+
+    // Login Success Handling
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('login') && urlParams.get('login') === 'success') {
+        showToast('Welcome back, Twin', 'rgba(0, 200, 83, 0.95)');
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({path:newUrl}, '', newUrl);
     }
 
     // --- NAVIGATION & SIDEBAR ---
@@ -32,19 +42,40 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => switchView(btn.getAttribute('data-target')));
     });
 
+    // Sidebar Dropdown Logic
+    const accountDropdownBtn = document.getElementById('account-dropdown-btn');
+    if (accountDropdownBtn) {
+        accountDropdownBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const submenu = document.getElementById('account-submenu');
+            const arrow = accountDropdownBtn.querySelector('.dropdown-arrow');
+            const isOpen = submenu.style.display === 'flex';
+            submenu.style.display = isOpen ? 'none' : 'flex';
+            if (arrow) arrow.textContent = isOpen ? 'v' : '>';
+        });
+    }
+
+    // Logout Logic
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showToast('Logging out...', '#ff3c3c');
+            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        });
+    }
+
+    // Sidebar Toggle
     const ham = document.getElementById('hamburger-btn');
     const close = document.getElementById('close-sidebar-btn');
     if (ham) ham.addEventListener('click', () => { sidebar.classList.add('open'); overlay.classList.add('open'); });
     if (close) close.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
     if (overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); });
 
-    // Sidebar Library Trigger (Attaching to all instances)
+    // Library Links
     const libraryLinks = document.querySelectorAll('[data-action="library"]');
-    console.log(`🔍 Found ${libraryLinks.length} Library Links.`);
-
-    libraryLinks.forEach((link, index) => {
+    libraryLinks.forEach(link => {
         link.addEventListener('click', (e) => {
-            console.log(`🖱️ Library Link #${index + 1} Clicked!`);
             e.preventDefault();
             switchView('library-section');
             loadLibrary();
@@ -61,10 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- DROP ZONE & FILE LISTING ---
-    const fileStore = new Map(); // Store File objects for later upload
-
-    function setupDropZone(zoneId, inputId, listId, mode) {
+    // --- DROP ZONE & HASHING ---
+    async function setupDropZone(zoneId, inputId, listId, mode) {
         const dropZone = document.getElementById(zoneId);
         const fileInput = document.getElementById(inputId);
         const fileList = document.getElementById(listId);
@@ -75,25 +104,23 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZone.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); });
         });
 
-        ['dragenter', 'dragover'].forEach(e => {
-            dropZone.addEventListener(e, () => dropZone.classList.add('dragover'));
-        });
-
-        ['dragleave', 'drop'].forEach(e => {
-            dropZone.addEventListener(e, () => dropZone.classList.remove('dragover'));
-        });
-
         dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
-        function handleFiles(files) {
-            Array.from(files).forEach(file => {
+        async function handleFiles(files) {
+            for (const file of files) {
                 const id = Math.random().toString(36).substr(2, 9);
                 fileStore.set(id, file);
+
+                // Calculate Hash (Your Feature)
+                const buffer = await file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+                const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
                 const item = document.createElement('div');
                 item.className = 'file-item';
                 item.setAttribute('data-id', id);
+                item.setAttribute('data-hash', hashHex);
                 item.innerHTML = `
                     <div class="file-info">
                         <div class="file-name">${file.name}</div>
@@ -107,18 +134,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.remove();
                     fileStore.delete(id);
                 };
-
                 fileList.appendChild(item);
-            });
+            }
         }
     }
 
     setupDropZone('protect-drop-zone', 'protect-file-input', 'protect-file-list', 'protect');
     setupDropZone('verify-drop-zone', 'verify-file-input', 'verify-file-list', 'verify');
 
-    // --- REAL BACKEND CALLS ---
-
-    // 1. Seal Assets
+    // --- SEAL ASSETS (With Animation) ---
     const vaultBtn = document.getElementById('secure-vault-btn');
     if (vaultBtn) {
         vaultBtn.addEventListener('click', async () => {
@@ -127,60 +151,70 @@ document.addEventListener('DOMContentLoaded', () => {
             const items = Array.from(fileList.querySelectorAll('.file-item'));
 
             if (!ownerId || items.length === 0) {
-                showToast("Enter Owner ID and add files!");
+                showToast("Identity Required!", "#ff3c3c");
                 return;
             }
 
+            // Animation Trigger
+            const vaultContainer = document.querySelector('.vault-container');
+            const fallingFile = document.getElementById('falling-file');
+            
             vaultBtn.disabled = true;
-            vaultBtn.textContent = "Processing...";
-
+            vaultBtn.style.transform = 'translateY(40px) scale(0.5)';
+            vaultBtn.style.opacity = '0';
+            
+            // Sequential Upload to Supabase
+            let successCount = 0;
             for (const item of items) {
                 const id = item.getAttribute('data-id');
                 const file = fileStore.get(id);
                 const statusEl = item.querySelector('.file-status');
 
-                statusEl.textContent = "Uploading...";
-
+                statusEl.textContent = "Sealing...";
+                
                 const formData = new FormData();
                 formData.append('file', file);
 
                 try {
-                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}`, {
+                    const response = await fetch(`http://localhost:8080/seal?owner_id=${encodeURIComponent(ownerId)}`, {
                         method: 'POST',
                         body: formData
                     });
-                    const res = await response.json();
-
                     if (response.ok) {
-                        statusEl.textContent = "Sealed ✓";
+                        statusEl.textContent = "✓ Secured";
                         statusEl.style.color = "#00e676";
+                        successCount++;
                     } else {
-                        statusEl.textContent = "Error";
+                        statusEl.textContent = "Failed";
                         statusEl.style.color = "#ff3c3c";
                     }
                 } catch (err) {
-                    statusEl.textContent = "Failed";
+                    statusEl.textContent = "Error";
                 }
             }
 
-            vaultBtn.disabled = false;
-            vaultBtn.textContent = "Secure Vault";
-            showToast("Vault operations complete!");
+            // Reset UI
+            setTimeout(() => {
+                vaultBtn.disabled = false;
+                vaultBtn.style.transform = 'translateY(0) scale(1)';
+                vaultBtn.style.opacity = '1';
+                showToast(`Secured ${successCount} assets!`);
+            }, 1000);
         });
     }
 
-    // 2. Load Library
+    // --- LOAD LIBRARY ---
     async function loadLibrary() {
         const grid = document.getElementById('library-grid');
-        grid.innerHTML = '<div class="loading-spinner">Fetching from Supabase...</div>';
+        grid.innerHTML = '<div class="loading-spinner">Decrypting Vault...</div>';
 
         try {
             const response = await fetch('http://localhost:8080/library');
             const data = await response.json();
-
             grid.innerHTML = '';
+            
             if (!data || data.length === 0) {
-                grid.innerHTML = '<div class="loading-spinner">No assets in your vault.</div>';
+                grid.innerHTML = '<div class="loading-spinner">Vault Empty.</div>';
                 return;
             }
 
@@ -192,21 +226,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="asset-owner">${item.owner_id}</span>
                         <span class="asset-date">${new Date(item.created_at).toLocaleDateString()}</span>
                     </div>
-                    <div class="asset-id">TX: ${item.transaction_id}</div>
+                    <div class="asset-id">ID: ${item.transaction_id.substr(0,8)}...</div>
                     <div class="asset-actions">
-                        <a href="${item.original_url}" target="_blank" class="btn-small btn-view-original">Original</a>
+                        <a href="${item.original_url}" target="_blank" class="btn-small">Original</a>
                         <a href="${item.sealed_url}" target="_blank" class="btn-small btn-view-sealed">Sealed</a>
                     </div>
                 `;
                 grid.appendChild(card);
             });
         } catch (err) {
-            console.error("❌ Library Fetch Error:", err);
-            grid.innerHTML = '<div class="loading-spinner">Failed to load vault. (Check Console)</div>';
+            grid.innerHTML = '<div class="loading-spinner">Connection Error.</div>';
         }
     }
 
-    // 3. Verify Asset
+    // --- VERIFY ASSET ---
     const verifyInput = document.getElementById('verify-file-input');
     if (verifyInput) {
         verifyInput.addEventListener('change', async () => {
@@ -219,9 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch('http://localhost:8080/verify', { method: 'POST', body: formData });
                 const result = await response.json();
-                alert(`Verification Result: ${result.status}\nOwner: ${result.owner_id || 'N/A'}`);
+                alert(`Verification: ${result.status}\nOwner: ${result.owner_id || 'Unknown'}`);
             } catch (err) {
-                alert("Verification request failed.");
+                alert("Verification failed.");
             }
         });
     }
