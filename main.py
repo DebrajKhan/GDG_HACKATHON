@@ -183,6 +183,7 @@ async def verify_ownership(file: UploadFile = File(...)):
                     "status": "Verified via DNA",
                     "owner_id": duplicate.get("owner_id"),
                     "timestamp": str(duplicate.get("created_at")),
+                    "phash": current_phash,
                     "method": "Perceptual Hashing (Digital DNA)"
                 }
         except Exception as e:
@@ -190,7 +191,11 @@ async def verify_ownership(file: UploadFile = File(...)):
 
         return JSONResponse(
             status_code=404,
-            content={"status": "Not Found", "error": "No ownership record found for this asset in the Vault."}
+            content={
+                "status": "Not Found", 
+                "error": "No ownership record found for this asset in the Vault.",
+                "phash": current_phash
+            }
         )
     except Exception as e:
         return JSONResponse(
