@@ -63,7 +63,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
                     status_code=409,
                     content={
                         "status": "Already Claimed",
-                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('timestamp'))}"
+                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
                     }
                 )
         except Exception as e:
