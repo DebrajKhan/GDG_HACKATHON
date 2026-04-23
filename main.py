@@ -71,6 +71,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
 
         # 3. Apply AES-256-GCM Seal
         try:
+            print(f"DEBUG: Starting AES Seal for {owner_id}")
             nparr = np.frombuffer(contents, np.uint8)
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             
@@ -84,16 +85,20 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
             
             transaction_id = str(uuid.uuid4())
-            temp_path = f"temp_{transaction_id}.sealed"
+            temp_path = f"temp_{transaction_id}.png"
             
             with open(temp_path, "wb") as f:
                 f.write(sealed_package)
+            print(f"DEBUG: Temp file created at {temp_path}")
         except Exception as e:
+             print(f"DEBUG: Sealing Error: {str(e)}")
              return JSONResponse(status_code=500, content={"status": "Error", "error": f"Image Processing Error: {str(e)}"})
 
         try:
             # Upload to Storage
-            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.sealed")
+            print(f"DEBUG: Uploading to Supabase Storage...")
+            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.png")
+            print(f"DEBUG: Upload successful. URL: {storage_url}")
             
             # Save Metadata with Integrity Signature
             if not MOCK_MODE:
@@ -105,6 +110,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
                 }).execute()
             
         except Exception as e:
+            print(f"DEBUG: Storage/DB Error: {str(e)}")
             raise Exception(f"Database/Storage Error: {str(e)}")
             
         finally:
@@ -115,7 +121,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             "status": "Impenetrably Sealed",
             "transaction_id": transaction_id,
             "pHash": current_phash,
-            "sealed_url": storage_url
+            "sealed_url": str(storage_url)
         }
     except Exception as e:
         return JSONResponse(
