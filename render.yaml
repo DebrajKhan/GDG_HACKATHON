@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: digital-watermarking
+    runtime: docker
+    plan: free
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: OWNERSHIP_PRIVATE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000

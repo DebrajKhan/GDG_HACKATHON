@@ -25,7 +25,6 @@ app.add_middleware(
 )
 
 # Serve Frontend (Static Files)
-# Note: Ensure index.html, style.css, app.js, and logo.png are in the root
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 # Secret key for sealing - should be moved to env/vault
@@ -175,6 +174,18 @@ async def verify_ownership(file: UploadFile = File(...)):
             "b": f"data:image/png;base64,{b64_b}"
         }
     }
+
+
+# Helper to serve root files (CSS, JS, Images)
+@app.get("/{file_path:path}")
+async def serve_static(file_path: str):
+    # List of allowed static files in root to avoid serving sensitive files
+    allowed_extensions = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".ico")
+    if any(file_path.endswith(ext) for ext in allowed_extensions):
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+    # If not a static file or doesn't exist, let FastAPI handle other routes
+    raise HTTPException(status_code=404)
 
 if __name__ == "__main__":
     import uvicorn
