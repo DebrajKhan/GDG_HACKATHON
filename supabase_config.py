@@ -20,22 +20,40 @@ else:
     print("Warning: Supabase credentials not found in .env. Entering MOCK MODE.")
     MOCK_MODE = True
 
-def check_duplicate_hash(new_hash: str, threshold: int = 5):
-    """Checks Supabase for any existing hash with Hamming Distance < threshold."""
+def check_duplicate_hash(new_hash: str, threshold: int = 25):
+    """
+    ULTIMATE DNA SCANNER:
+    Finds the most similar record in the entire vault.
+    """
     if MOCK_MODE:
         return None 
-    
-    # We fetch all records to perform fuzzy comparison
-    # For large datasets, this should be optimized with a specialized index or RPC
-    response = supabase.table("ownership").select("*").execute()
-    records = response.data
-    
-    for record in records:
-        existing_hash = record.get("phash_value")
-        if existing_hash:
-            from security import hamming_distance
-            if hamming_distance(new_hash, existing_hash) < threshold:
-                return record
+    try:
+        response = supabase.table("ownership").select("*").execute()
+        records = response.data or []
+        
+        best_match = None
+        lowest_distance = 999
+        
+        for record in records:
+            existing_hash = record.get("phash_value")
+            if existing_hash:
+                from security import hamming_distance
+                try:
+                    distance = hamming_distance(new_hash, existing_hash)
+                    if distance < lowest_distance:
+                        lowest_distance = distance
+                        best_match = record
+                except:
+                    continue
+        
+        # Only return if it's within our "Fuzzy" threshold
+        if best_match and lowest_distance < threshold:
+            print(f"DEBUG: Found Best Match with distance {lowest_distance}")
+            return best_match
+            
+    except Exception as e:
+        print(f"DNA Search Error: {e}")
+        
     return None
 
 def save_metadata(owner_id: str, phash: str, transaction_id: str):
@@ -63,5 +81,5 @@ def upload_sealed_image(file_path: str, destination_name: str):
         supabase.storage.from_("sealed-assets").upload(destination_name, f, {"content-type": "image/png"})
     
     # Get public URL
-    url_res = supabase.storage.from_("sealed-assets").get_public_url(destination_name)
-    return url_res
+    public_url = supabase.storage.from_("sealed-assets").get_public_url(destination_name)
+    return public_url

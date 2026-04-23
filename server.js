@@ -1,165 +1,154 @@
 const express = require("express");
 const multer = require("multer");
-const cors = require("cors");
-const { spawn } = require("child_process");
+const { createClient } = require("@supabase/supabase-js");
+const { exec } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const bcrypt = require("bcryptjs");
-const { createClient } = require("@supabase/supabase-js");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
+
+// Initialize Gemini & Gemma
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "YOUR_GEMINI_KEY_HERE");
+const visionModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const gemmaModel = genAI.getGenerativeModel({ 
+    model: "gemma-2-9b-it",
+    systemInstruction: "You are the ORYGIN AI Security Assistant. You are an expert in steganography, digital watermarking, and asset protection. Help the user understand how their files are being protected using invisible DNA and AI tagging. Keep your answers concise, professional, and reassuring."
+});
 
 // 1. Supabase Initialization
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const PRIVATE_KEY = process.env.OWNERSHIP_PRIVATE_KEY || "SUPER_SECRET_KEY_123";
-
-let supabase;
-let mockMode = false;
-
-if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_URL.includes("your-project-id")) {
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-    console.log("✅ Supabase Connected");
-} else {
-    console.warn("⚠️ Supabase credentials missing or default. Entering MOCK MODE.");
-    mockMode = true;
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static("."));
-
 const upload = multer({ dest: "uploads/" });
 const PORT = 8080;
 
-// 2. Auth Routes
-app.post("/register", async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
+app.use(express.static("."));
+app.use(express.json());
 
+// Mock database for testing if no Supabase keys provided
+const mockMode = !SUPABASE_URL || !SUPABASE_KEY;
+
+// 2. AI Image Tagging & Analysis (Gemini)
+async function getAIAnalysis(imageBuffer) {
     try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const { error } = await supabase.from("users").insert({ email, password: hashedPassword });
-
-        if (error) {
-            if (error.code === '23505') return res.status(400).json({ error: "User already exists" });
-            throw error;
-        }
-        res.json({ status: "Success", message: "User registered" });
+        const prompt = "Analyze this image and provide a 1-sentence summary and 5 descriptive tags. Return as JSON: { 'summary': '...', 'tags': ['...', '...'] }";
+        const result = await visionModel.generateContent([
+            prompt,
+            { inlineData: { data: imageBuffer.toString("base64"), mimeType: "image/png" } }
+        ]);
+        const response = await result.response;
+        return JSON.parse(response.text().replace(/```json|```/g, "").trim());
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("AI Analysis Error:", err);
+        return { summary: "Secured asset in ORYGIN AI Vault.", tags: ["secure", "dna-sealed"] };
     }
-});
-
-app.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ error: "Missing email or password" });
-
-    try {
-        const { data, error } = await supabase.from("users").select("*").eq("email", email).single();
-        if (error || !data) return res.status(401).json({ error: "Invalid email or password" });
-
-        const isMatch = await bcrypt.compare(password, data.password);
-        if (!isMatch) return res.status(401).json({ error: "Invalid email or password" });
-
-        res.json({ status: "Success", user: { email: data.email } });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 3. Helper to call Python CLI
-const pythonPath = fs.existsSync(path.join(__dirname, "venv", "Scripts", "python.exe")) 
-    ? path.join(__dirname, "venv", "Scripts", "python.exe") 
-    : "python";
-
-function callPython(action, key, buffer) {
-    return new Promise((resolve, reject) => {
-        const py = spawn(pythonPath, ["security_cli.py", action, "--key", key]);
-        let output = [];
-        let errorOutput = "";
-
-        py.stdin.write(buffer);
-        py.stdin.end();
-
-        py.stdout.on("data", (data) => output.push(data));
-        py.stderr.on("data", (data) => errorOutput += data.toString());
-
-        py.on("close", (code) => {
-            if (code !== 0) {
-                console.error(`❌ Python CLI Error (${action}):`, errorOutput);
-                reject(new Error(errorOutput || `Python process exited with code ${code}`));
-            } else {
-                resolve(Buffer.concat(output));
-            }
-        });
-    });
 }
 
-// 4. Sealing & Verification
+// 3. DNA Injection & Sealing
 app.post("/seal", upload.single("file"), async (req, res) => {
-    const { owner_id } = req.query;
-    if (!req.file || !owner_id) return res.status(400).json({ error: "Missing file or owner_id" });
+    const { ownerId } = req.body;
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
 
     try {
-        const fileBuffer = fs.readFileSync(req.file.path);
-        const transaction_id = uuidv4();
+        const transactionId = Math.random().toString(36).substr(2, 9).toUpperCase();
         
-        const phashBuffer = await callPython("hash", PRIVATE_KEY, fileBuffer);
-        const currentPhash = phashBuffer.toString().trim();
-        const sealedBuffer = await callPython("seal", PRIVATE_KEY, fileBuffer);
+        // Step A: AI Analysis
+        const imageBuffer = fs.readFileSync(file.path);
+        const aiInfo = await getAIAnalysis(imageBuffer);
 
-        let originalUrl = "http://mock.com/original.png";
-        let sealedUrl = "http://mock.com/sealed.png";
+        // Step B: Inject Invisible DNA
+        // DNA Payload format: App: ORYGIN AI | Owner: ID | ID: TRANS_ID ####
+        const dnaPayload = `App: ORYGIN AI | Owner: ${ownerId} | ID: ${transactionId} ####`;
+        const pythonProcess = exec(`python security_cli.py inject --data "${dnaPayload}"`);
+        
+        const tempOutPath = path.join("uploads", `sealed_${Date.now()}.png`);
+        const stdinStream = fs.createReadStream(file.path);
+        const stdoutStream = fs.createWriteStream(tempOutPath);
 
+        const sealPromise = new Promise((resolve, reject) => {
+            stdinStream.pipe(pythonProcess.stdin);
+            pythonProcess.stdout.pipe(stdoutStream);
+            pythonProcess.on("close", (code) => code === 0 ? resolve() : reject("Python injection failed"));
+        });
+
+        await sealPromise;
+
+        // Step C: Record in Supabase
         if (!mockMode) {
-            const originalPath = `originals/${transaction_id}_${req.file.originalname}`;
-            await supabase.storage.from("assets").upload(originalPath, fileBuffer, { contentType: req.file.mimetype });
-            originalUrl = supabase.storage.from("assets").getPublicUrl(originalPath).data.publicUrl;
-
-            const sealedPath = `sealed/${transaction_id}_sealed.png`;
-            await supabase.storage.from("assets").upload(sealedPath, sealedBuffer, { contentType: "image/png" });
-            sealedUrl = supabase.storage.from("assets").getPublicUrl(sealedPath).data.publicUrl;
-
             await supabase.from("ownership").insert({
-                owner_id,
-                transaction_id,
-                phash_value: currentPhash,
-                original_url: originalUrl,
-                sealed_url: sealedUrl,
+                transaction_id: transactionId,
+                owner_id: ownerId,
+                ai_description: aiInfo.summary,
+                ai_tags: aiInfo.tags,
                 created_at: new Date()
             });
         }
 
-        fs.unlinkSync(req.file.path);
-        res.json({ status: "Success", transaction_id, original_url: originalUrl, sealed_url: sealedUrl });
+        const sealedBase64 = fs.readFileSync(tempOutPath, "base64");
+        
+        // Clean up
+        fs.unlinkSync(file.path);
+        fs.unlinkSync(tempOutPath);
+
+        res.json({
+            success: true,
+            transactionId,
+            aiInfo,
+            sealedImage: `data:image/png;base64,${sealedBase64}`
+        });
 
     } catch (err) {
-        console.error("❌ Seal Error:", err.message);
-        if (req.file) fs.unlinkSync(req.file.path);
         res.status(500).json({ error: err.message });
     }
 });
 
+// 4. Verification & DNA Extraction
 app.post("/verify", upload.single("file"), async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "Missing file" });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
 
     try {
-        const fileBuffer = fs.readFileSync(req.file.path);
-        const recoveredHashBuffer = await callPython("unseal", PRIVATE_KEY, fileBuffer);
-        const recoveredHash = recoveredHashBuffer.toString().trim();
+        // Step A: Extract DNA using Python
+        const pythonProcess = exec(`python security_cli.py extract`);
+        
+        let extractedDna = "";
+        const extractionPromise = new Promise((resolve, reject) => {
+            const stdinStream = fs.createReadStream(file.path);
+            pythonProcess.stdin.write(fs.readFileSync(file.path));
+            pythonProcess.stdin.end();
 
-        if (mockMode) return res.json({ status: "Verified", owner_id: "MOCK_OWNER" });
+            pythonProcess.stdout.on("data", (data) => extractedDna += data.toString());
+            pythonProcess.on("close", (code) => code === 0 ? resolve() : reject("DNA extraction failed"));
+        });
 
-        const { data, error } = await supabase.from("ownership").select("*").eq("phash_value", recoveredHash).single();
-        fs.unlinkSync(req.file.path);
+        await extractionPromise;
+        extractedDna = extractedDna.trim();
 
-        if (error || !data) return res.status(404).json({ status: "Tampered" });
-        res.json({ status: "Verified", owner_id: data.owner_id });
+        // Parse DNA (e.g. ID: TRANS_ID)
+        const match = extractedDna.match(/ID: ([A-Z0-9]+)/);
+        if (match && match[1]) {
+            const transId = match[1];
+            
+            // Check Database
+            if (mockMode) {
+                return res.json({ status: "Authentic", dna: extractedDna, details: { owner_id: "Demo Owner", ai_description: "Verified via Mock Mode" } });
+            }
+
+            const { data, error } = await supabase.from("ownership").select("*").eq("transaction_id", transId).single();
+            if (data) {
+                return res.json({ status: "Authentic", dna: extractedDna, details: data });
+            }
+        }
+
+        res.json({ status: "Tampered", dna: extractedDna || "No DNA Found" });
 
     } catch (err) {
         res.status(500).json({ error: err.message });
+    } finally {
+        fs.unlinkSync(file.path);
     }
 });
 
@@ -174,4 +163,23 @@ app.get("/library", async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🚀 Supabase-Powered Backend running at http://localhost:${PORT}`));
+// 5. Gemma Security Assistant
+app.post("/chat", async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Missing message" });
+
+    try {
+        const systemPrompt = `You are the ORYGIN AI Security Assistant. You are an expert in steganography, digital watermarking, and asset protection. 
+        Help the user understand how their files are being protected using invisible DNA and AI tagging. 
+        Answer this user question concisely and professionally: "${message}"`;
+
+        const result = await gemmaModel.generateContent(systemPrompt);
+        const response = await result.response;
+        res.json({ reply: response.text() });
+    } catch (err) {
+        console.error("Gemma Chat Error:", err.message);
+        res.status(500).json({ reply: "I'm having trouble connecting to my security modules. Please try again in a moment." });
+    }
+});
+
+app.listen(PORT, () => console.log(`🚀 ORYGIN AI Backend running at http://localhost:${PORT}`));

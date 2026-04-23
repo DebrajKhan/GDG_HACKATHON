@@ -37,54 +37,74 @@ def generate_pov_frames(image_np: np.ndarray):
     
     return frame_a, frame_b
 
-# --- PILLAR 2: ANTI-CAMERA MOIRÉ JAMMING ---
+# --- PILLAR 2: INVISIBLE PIXEL WATERMARKING (LSB) ---
 
-def apply_moire_jamming(image_np: np.ndarray):
+def apply_seal(image_np: np.ndarray, data: str) -> bytes:
     """
-    Injects a high-frequency invisible grid.
-    Causes 'Aliasing' and 'Moiré' rainbow swirls when photographed by a phone camera.
+    Hides the data string in the least significant bits of the image.
+    Completely invisible to the human eye.
     """
-    h, w, c = image_np.shape
-    # Create a high-frequency sinusoidal grid
-    x = np.linspace(0, w, w)
-    y = np.linspace(0, h, h)
-    X, Y = np.meshgrid(x, y)
-    
-    # Frequency set to fight with most CMOS sensors (phone cameras)
-    grid = (np.sin(X * 0.5) * np.cos(Y * 0.5) * 5).astype(np.int16)
-    
-    # Apply grid to all channels
-    jammed = image_np.astype(np.int16)
-    for i in range(3):
-        jammed[:, :, i] += grid
+    # Ensure delimiter is present
+    if "####" not in data:
+        data += "####" 
         
-    return np.clip(jammed, 0, 255).astype(np.uint8)
-
-# --- CRYPTOGRAPHIC CORE ---
-
-def apply_seal(image_np: np.ndarray, key: str, use_jamming: bool = True) -> bytes:
-    """
-    Applies Jamming, then AES-256-GCM encryption.
-    """
-    processed = image_np
-    if use_jamming:
-        processed = apply_moire_jamming(image_np)
+    binary_data = ''.join(format(ord(i), '08b') for i in data)
+    
+    data_index = 0
+    data_len = len(binary_data)
+    output = image_np.copy()
+    
+    # Inject bits into pixels
+    for row in output:
+        for pixel in row:
+            for channel in range(3):
+                if data_index < data_len:
+                    pixel[channel] = (int(pixel[channel]) & 254) | int(binary_data[data_index])
+                    data_index += 1
+                else:
+                    break
+            if data_index >= data_len: break
+        if data_index >= data_len: break
         
-    ret, buffer = cv2.imencode('.png', processed)
-    data = buffer.tobytes()
-    
-    aesgcm = AESGCM(derive_key(key))
-    nonce = os.urandom(12)
-    return nonce + aesgcm.encrypt(nonce, data, None)
+    ret, buffer = cv2.imencode('.png', output)
+    return buffer.tobytes()
 
-def verify_seal(sealed_package: bytes, key: str):
-    aesgcm = AESGCM(derive_key(key))
-    nonce = sealed_package[:12]
-    ciphertext = sealed_package[12:]
-    
-    decrypted_data = aesgcm.decrypt(nonce, ciphertext, None)
-    nparr = np.frombuffer(decrypted_data, np.uint8)
-    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+def verify_seal(image_np: np.ndarray):
+    """
+    ULTIMATE VERIFICATION ENGINE:
+    Extracts the hidden DNA signature from pixels using high-depth scanning.
+    """
+    try:
+        binary_data = ""
+        # Scan up to 50,000 pixels for maximum coverage
+        pixel_limit = 50000 
+        pixel_count = 0
+        
+        for row in image_np:
+            for pixel in row:
+                for channel in range(3):
+                    binary_data += str(pixel[channel] & 1)
+                pixel_count += 1
+                if pixel_count > pixel_limit: break
+            if pixel_count > pixel_limit: break
+                    
+        # Convert bits to characters
+        all_bytes = [binary_data[i:i+8] for i in range(0, len(binary_data), 8)]
+        decoded_data = ""
+        for byte in all_bytes:
+            try:
+                char = chr(int(byte, 2))
+                decoded_data += char
+                # Check for the end delimiter
+                if "####" in decoded_data:
+                    # Return the clean payload
+                    return decoded_data.split("####")[0]
+            except:
+                continue
+    except Exception as e:
+        print(f"Extraction Error: {e}")
+            
+    return None
 
 def get_integrity_hmac(phash: str, owner_id: str, key: str) -> str:
     import hmac

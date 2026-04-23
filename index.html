@@ -4,12 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APP | Content Authenticity & Protection</title>
+    <title>ORYGIN AI | Content Authenticity & Protection</title>
     <meta name="description" content="Protect your photos and videos and verify their authenticity.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="ai-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -98,12 +99,13 @@
                     <line x1="3" y1="18" x2="21" y2="18"></line>
                 </svg>
             </button>
-            <a href="dashboard.html" class="logo" style="text-decoration: none;">
-                <span class="gradient-text">APP</span>
+            <a href="dashboard.html" class="logo" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
+                <img src="assets/logo.png" alt="ORYGIN AI Logo" class="app-logo">
+                <span class="gradient-text">ORYGIN AI</span>
             </a>
         </div>
         <nav class="nav-links">
-            <button class="nav-btn active" data-target="protect-section">Seal Your Identity</button>
+            <button class="nav-btn active" data-target="protect-section">Seal Your Originality</button>
             <button class="nav-btn" data-target="verify-section">Check Authenticity</button>
             <a href="broadcast_initial.html" class="nav-btn" style="text-decoration: none;">Broadcaster</a>
         </nav>
@@ -267,10 +269,32 @@
                         <p>Drag and drop your files here</p>
                         <p class="separator">or</p>
                         <label for="verify-file-input" class="btn-primary">Browse Files</label>
-                        <input type="file" id="verify-file-input" multiple accept="image/*,video/*" class="file-input">
+                        <input type="file" id="verify-file-input" accept="image/*,video/*" class="file-input">
                     </div>
                 </div>
+                <div class="verify-actions" style="margin-top: 1.5rem; text-align: center;">
+                    <button id="run-verify-btn" class="btn-primary" style="display: none; width: 100%; max-width: 300px;">
+                        🔍 RUN AI DIAGNOSTIC
+                    </button>
+                </div>
                 <div class="file-list" id="verify-file-list"></div>
+
+                <!-- AI Verification Result -->
+                <div id="verify-result-container" class="verify-result-card" style="display: none;">
+                    <div class="verification-badge" id="verify-badge">Checking...</div>
+                    <div class="result-details">
+                        <h3 id="verify-status-text">Analyzing DNA...</h3>
+                        <p id="verify-owner-info" class="owner-text"></p>
+                        <div class="dna-string-box">
+                            <span class="label">Extracted DNA:</span>
+                            <code id="verify-dna-string">---</code>
+                        </div>
+                        <div class="ai-context-box">
+                            <span class="label">AI Context:</span>
+                            <p id="verify-ai-desc"></p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -288,6 +312,61 @@
         </section>
     </main>
 
+    <!-- AI Sealing Progress Modal -->
+    <div id="ai-progress-modal" class="modal-overlay" style="display: none;">
+        <div class="glass-card modal-content">
+            <h2 class="title"><span class="gradient-text">AI DNA</span> Lab</h2>
+            <div class="ai-process-steps">
+                <div class="process-step" id="step-tagging">
+                    <span class="step-icon">🤖</span>
+                    <span class="step-text">AI Content Tagging...</span>
+                    <span class="step-status">Pending</span>
+                </div>
+                <div class="process-step" id="step-dna">
+                    <span class="step-icon">🧬</span>
+                    <span class="step-text">Injecting Invisible DNA...</span>
+                    <span class="step-status">Pending</span>
+                </div>
+                <div class="process-step" id="step-upload">
+                    <span class="step-icon">☁️</span>
+                    <span class="step-text">Securing to Vault...</span>
+                    <span class="step-status">Pending</span>
+                </div>
+            </div>
+            <div id="success-actions" style="display: none; margin-top: 2rem; text-align: center;">
+                <p class="success-msg">✅ Asset Sealed & Protected!</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;">
+                    <a id="download-sealed-btn" class="btn-primary" download="sealed_asset.png" style="text-decoration: none;">Download Image</a>
+                    <button class="nav-btn" onclick="document.getElementById('ai-progress-modal').style.display='none'">Finish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gemma Security Assistant Chatbot -->
+    <div id="chatbot-container" class="chatbot-container">
+        <div id="chat-window" class="chat-window" style="display: none;">
+            <div class="chat-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="online-indicator"></span>
+                    <strong>ORYGIN ASSISTANT</strong>
+                </div>
+                <button id="close-chat" class="close-chat">✕</button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <div class="message ai-message">Hello! I'm your ORYGIN Security Assistant. How can I help protect your assets today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about security...">
+                <button id="send-chat-btn">➔</button>
+            </div>
+        </div>
+        <button id="chat-toggle-btn" class="chat-toggle-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+    </div>
+
+    <script src="chat.js"></script>
     <script src="app.js?v=2.0"></script>
 </body>
 

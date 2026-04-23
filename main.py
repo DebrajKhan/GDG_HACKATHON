@@ -13,7 +13,27 @@ from PIL import Image
 import io
 import imagehash
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi import Request
+
 app = FastAPI(title="Digital Watermarking Service")
+
+# GLOBAL SAFETY NET: Catch every single error and force it to be JSON
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status": "Error", "error": f"Global Server Crash: {str(exc)}"}
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "Error", "error": str(exc.detail)}
+    )
 
 # Add CORS middleware
 app.add_middleware(
@@ -25,7 +45,6 @@ app.add_middleware(
 )
 
 # Serve Frontend (Static Files)
-# Note: Ensure index.html, style.css, app.js, and logo.png are in the root
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 # Secret key for sealing - should be moved to env/vault
@@ -43,138 +62,188 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
     3. If unique, applies seal.
     4. Saves metadata and sealed file to Firebase.
     """
-    # Read file content
-    contents = await file.read()
-    
-    # 1. Generate Perceptual Hash
     try:
-        current_phash = get_phash(contents)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
-
-    # 2. Check for Duplicates (Hamming Distance < 5)
-    duplicate = check_duplicate_hash(current_phash)
-    if duplicate:
-        return JSONResponse(
-            status_code=409,
-            content={
-                "status": "Already Claimed",
-                "owner_id": duplicate.get("owner_id"),
-                "timestamp": str(duplicate.get("timestamp"))
-            }
-        )
-
-    # 3. Apply AES-256-GCM Seal (Impenetrable Encryption)
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    sealed_package = apply_seal(img, PRIVATE_KEY)
-    
-    # 4. Save Metadata & Signed Hash
-    from security import get_integrity_hmac
-    record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
-    
-    transaction_id = str(uuid.uuid4())
-    temp_path = f"temp_{transaction_id}.sealed"
-    
-    with open(temp_path, "wb") as f:
-        f.write(sealed_package)
-
-    try:
-        # Upload to Storage
-        storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.sealed")
+        # Read file content
+        try:
+            contents = await file.read()
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"status": "Error", "error": f"Failed to read upload: {str(e)}"})
         
-        # Save Metadata with Integrity Signature
+        # 3. Apply Invisible DNA Injection (Pixel-to-Pixel)
+        transaction_id = str(uuid.uuid4())
+        
+        # Original Localhost Payload format
+        dna_payload = f"App: ORYGIN AI | Owner: {owner_id} | ID: {transaction_id} ####"
+        
+        # This applies the invisible pixel-to-pixel engravtion
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        sealed_package = apply_seal(img, dna_payload)
+        
+        # GENERATE DNA (pHash) for duplicate protection
+        current_phash = get_phash(sealed_package)
+        
+        # Check for Duplicates
+        duplicate = check_duplicate_hash(current_phash)
+        if duplicate:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "status": "Already Claimed",
+                    "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
+                }
+            )
+
+        # 4. Save Metadata to Supabase
         if not MOCK_MODE:
             supabase.table("ownership").insert({
                 "owner_id": owner_id,
                 "phash_value": current_phash,
-                "transaction_id": transaction_id,
-                "integrity_sig": record_signature
+                "transaction_id": transaction_id
             }).execute()
         
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        temp_path = f"temp_{transaction_id}.png"
+        with open(temp_path, "wb") as f:
+            f.write(sealed_package)
+        try:
+            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.png")
+            return {
+                "status": "Impenetrably Sealed",
+                "transaction_id": transaction_id,
+                "phash": current_phash,
+                "sealed_url": str(storage_url)
+            }
+        finally:
+            if os.path.exists(temp_path): os.remove(temp_path)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "error": f"Global Crash: {str(e)}"}
+        )
 
-    return {
-        "status": "Impenetrably Sealed",
-        "transaction_id": transaction_id,
-        "pHash": current_phash,
-        "storage_url": storage_url
-    }
+@app.get("/library")
+async def get_library():
+    """Fetches all ownership records from Supabase."""
+    if MOCK_MODE:
+        return []
+    try:
+        response = supabase.table("ownership").select("*").order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "error": f"Library Fetch Failed: {str(e)}"}
+        )
 
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
-    1. Decrypts using AES-256-GCM (Tamper detection).
-    2. Re-calculates pHash.
-    3. Verifies against DB and HMAC integrity signature.
+    ULTIMATE AUTHENTICITY CHECK:
+    Combines Pixel-level Steganography and AI-Powered Perceptual DNA.
     """
-    sealed_package = await file.read()
-    
     try:
-        from security import verify_seal, get_integrity_hmac
-        recovered_img = verify_seal(sealed_package, PRIVATE_KEY)
-    except Exception:
-        return JSONResponse(
-            status_code=401,
-            content={"status": "Tampered", "message": "Package decryption failed - Invalid Key or Corrupted Data"}
-        )
+        # Step 1: Read and Decode the Image
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            return JSONResponse(status_code=400, content={"status": "Error", "error": "Invalid file format. Please upload a PNG image."})
 
-    # 1. Generate pHash of recovered image
-    recovered_pil = Image.fromarray(cv2.cvtColor(recovered_img, cv2.COLOR_BGR2RGB))
-    recovered_hash = str(imagehash.phash(recovered_pil))
-    
-    if MOCK_MODE:
-        return {
-            "status": "Verified (Simulation)",
-            "owner_id": "MOCK_OWNER",
-            "transaction_id": "MOCK_TXN_123"
-        }
+        # Step 2: High-Depth Pixel Extraction (Invisible Stamp)
+        from security import verify_seal, get_phash
+        pixel_dna = verify_seal(img)
+        print(f"DEBUG: Pixel Extraction Result: {pixel_dna}")
 
-    # 2. Check DB
-    response = supabase.table("ownership").select("*").eq("phash_value", recovered_hash).limit(1).execute()
-    records = response.data
-    
-    if not records:
+        # Step 3: Perceptual DNA Backup (AI Hashing)
+        image_dna = get_phash(contents)
+        print(f"DEBUG: Digital DNA Hash: {image_dna}")
+        
+        # SEARCH LOGIC: Try Pixel ID first, then DNA Match
+        match_found = False
+        record = None
+
+        # A. Try looking up by the ID extracted from pixels
+        if pixel_dna:
+            import re
+            id_match = re.search(r"ID: ([a-z0-9-]+)", pixel_dna, re.IGNORECASE)
+            if id_match:
+                trans_id = id_match.group(1)
+                db_res = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
+                if db_res.data:
+                    record = db_res.data[0]
+                    match_found = True
+                    method = "Invisible Pixel DNA (High Confidence)"
+
+        # B. Fallback to AI DNA Matching if pixel stamp was damaged
+        if not match_found:
+            dna_match = check_duplicate_hash(image_dna)
+            if dna_match:
+                record = dna_match
+                match_found = True
+                method = "AI Perceptual DNA (Pattern Recognition)"
+
+        # FINAL VERDICT
+        if match_found:
+            return {
+                "status": "Verified Authentic",
+                "owner_id": record.get("owner_id"),
+                "transaction_id": record.get("transaction_id"),
+                "timestamp": str(record.get("created_at")),
+                "phash": record.get("phash_value", image_dna),
+                "method": method
+            }
+
         return JSONResponse(
             status_code=404,
-            content={"status": "Unregistered", "message": "No matching fingerprint in database."}
+            content={
+                "status": "Not Found", 
+                "error": "No valid ownership records or DNA patterns found for this asset.",
+                "phash": image_dna
+            }
         )
 
-    record = records[0]
-    
-    # 3. Cryptographic Proof of Database Integrity
-    stored_sig = record.get("integrity_sig")
-    expected_sig = get_integrity_hmac(recovered_hash, record.get("owner_id"), PRIVATE_KEY)
-    
-    if stored_sig and stored_sig != expected_sig:
-         return JSONResponse(
-            status_code=403,
-            content={"status": "Integrity Breach", "message": "The database record for this asset has been modified/penetrated."}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "error": f"Verification Failure: {str(e)}"}
         )
 
-    # 4. Generate POV Frames for Secure Viewing
-    from security import generate_pov_frames
-    import base64
-    
-    frame_a, frame_b = generate_pov_frames(recovered_img)
-    _, buffer_a = cv2.imencode('.png', frame_a)
-    _, buffer_b = cv2.imencode('.png', frame_b)
-    
-    b64_a = base64.b64encode(buffer_a).decode('utf-8')
-    b64_b = base64.b64encode(buffer_b).decode('utf-8')
+# AI Chatbot Setup
+import google.generativeai as genai
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+else:
+    print("Warning: GEMINI_API_KEY not found. Chatbot will be disabled.")
 
-    return {
-        "status": "Verified & Authentic",
-        "owner_id": record.get("owner_id"),
-        "transaction_id": record.get("transaction_id"),
-        "pov_frames": {
-            "a": f"data:image/png;base64,{b64_a}",
-            "b": f"data:image/png;base64,{b64_b}"
-        }
-    }
+@app.post("/chat")
+async def chat_with_ai(request: Request):
+    """AI Security Assistant endpoint."""
+    try:
+        data = await request.json()
+        user_message = data.get("message", "")
+        
+        if not GEMINI_KEY:
+            return {"reply": "I'm sorry, my AI core is currently offline (API Key missing)."}
+
+        prompt = f"You are ORYGIN ASSISTANT, a security assistant for a digital watermarking and asset protection vault. Help the user with: {user_message}"
+        response = model.generate_content(prompt)
+        return {"reply": response.text}
+    except Exception as e:
+        return {"reply": f"Sorry, I encountered a glitch: {str(e)}"}
+
+# Helper to serve root files (CSS, JS, Images)
+@app.get("/{file_path:path}")
+async def serve_static(file_path: str):
+    # List of allowed static files in root to avoid serving sensitive files
+    allowed_extensions = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".html")
+    if any(file_path.endswith(ext) for ext in allowed_extensions):
+        if os.path.exists(file_path):
+            return FileResponse(file_path)
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    raise HTTPException(status_code=404)
 
 if __name__ == "__main__":
     import uvicorn

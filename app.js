@@ -124,14 +124,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!dropZone || !fileInput) return;
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
-            dropZone.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        ['dragenter', 'dragover'].forEach(e => {
+            dropZone.addEventListener(e, (ev) => { 
+                ev.preventDefault(); 
+                ev.stopPropagation(); 
+                dropZone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, (ev) => { 
+                ev.preventDefault(); 
+                ev.stopPropagation(); 
+                dropZone.classList.remove('drag-over');
+            });
         });
 
         dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
         async function handleFiles(files) {
+            const runVerifyBtn = document.getElementById('run-verify-btn');
+            if (mode === 'verify' && files.length > 0) {
+                runVerifyBtn.style.display = 'inline-block';
+                // Clear previous files in verify mode (only check one at a time)
+                fileList.innerHTML = '';
+            }
             for (const file of files) {
                 const id = Math.random().toString(36).substr(2, 9);
                 fileStore.set(id, file);
@@ -168,9 +186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- SEAL ASSETS (With Animation) ---
     const vaultBtn = document.getElementById('secure-vault-btn');
+    const aiModal = document.getElementById('ai-progress-modal');
+    
     if (vaultBtn) {
         vaultBtn.addEventListener('click', async () => {
             const ownerId = document.getElementById('owner-id').value.trim();
+            const username = document.querySelector('.profile-info h3').textContent;
             const fileList = document.getElementById('protect-file-list');
             const items = Array.from(fileList.querySelectorAll('.file-item'));
 
@@ -179,28 +200,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
-            // Animation Trigger
-            const vaultContainer = document.querySelector('.vault-container');
-            const fallingFile = document.getElementById('falling-file');
-            
-            vaultBtn.disabled = true;
-            vaultBtn.style.transform = 'translateY(40px) scale(0.5)';
-            vaultBtn.style.opacity = '0';
-            
-            // Sequential Upload to Supabase
-            let successCount = 0;
+            // Show AI Progress Modal
+            aiModal.style.display = 'flex';
+            const steps = {
+                tagging: document.getElementById('step-tagging'),
+                dna: document.getElementById('step-dna'),
+                upload: document.getElementById('step-upload')
+            };
+
+            // Reset Steps
+            Object.values(steps).forEach(s => {
+                s.className = 'process-step';
+                s.querySelector('.step-status').textContent = 'Pending';
+            });
+
+            let lastSealedUrl = "";
+
             for (const item of items) {
                 const id = item.getAttribute('data-id');
                 const file = fileStore.get(id);
-                const statusEl = item.querySelector('.file-status');
 
-                statusEl.textContent = "Sealing...";
-                
+                // STEP 1: AI TAGGING
+                steps.tagging.className = 'process-step active';
+                steps.tagging.querySelector('.step-status').textContent = 'Processing...';
+
                 const formData = new FormData();
                 formData.append('file', file);
 
                 try {
-                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}`, {
+                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}&username=${encodeURIComponent(username)}`, {
                         method: 'POST',
                         body: formData
                     });
@@ -208,26 +236,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const result = await response.json();
 
                     if (response.ok) {
-                        statusEl.textContent = "✓ Secured";
-                        statusEl.style.color = "#00e676";
-                        successCount++;
+                        // STEP 2: DNA INJECTION
+                        steps.tagging.className = 'process-step completed';
+                        steps.tagging.querySelector('.step-status').textContent = 'Done';
+                        
+                        steps.dna.className = 'process-step active';
+                        steps.dna.querySelector('.step-status').textContent = 'Injecting...';
+                        await new Promise(r => setTimeout(r, 1000)); // Visual pause
+
+                        // STEP 3: UPLOAD
+                        steps.dna.className = 'process-step completed';
+                        steps.dna.querySelector('.step-status').textContent = 'Injected';
+                        
+                        steps.upload.className = 'process-step active';
+                        steps.upload.querySelector('.step-status').textContent = 'Storing...';
+                        await new Promise(r => setTimeout(r, 800));
+
+                        steps.upload.className = 'process-step completed';
+                        steps.upload.querySelector('.step-status').textContent = 'Secure';
+
+                        lastSealedUrl = result.sealed_url;
+                        
+                        // Show success
+                        document.getElementById('success-actions').style.display = 'block';
+                        const downloadBtn = document.getElementById('download-sealed-btn');
+                        downloadBtn.href = result.sealed_url;
+                        
+                        showToast("Asset DNA Secured!");
                     } else {
-                        statusEl.textContent = result.error || "Failed";
-                        statusEl.style.color = "#ff3c3c";
+                        throw new Error(result.error);
                     }
                 } catch (err) {
-                    statusEl.textContent = "Connection Error";
-                    statusEl.style.color = "#ff3c3c";
+                    showToast("AI Lab Error: " + err.message, "#ff3c3c");
+                    aiModal.style.display = 'none';
                 }
             }
-
-            // Reset UI
-            setTimeout(() => {
-                vaultBtn.disabled = false;
-                vaultBtn.style.transform = 'translateY(0) scale(1)';
-                vaultBtn.style.opacity = '1';
-                showToast(`Secured ${successCount} assets!`);
-            }, 1000);
         });
     }
 
@@ -275,11 +318,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- VERIFY ASSET ---
-    const verifyInput = document.getElementById('verify-file-input');
-    if (verifyInput) {
-        verifyInput.addEventListener('change', async () => {
-            const file = verifyInput.files[0];
+    const runVerifyBtn = document.getElementById('run-verify-btn');
+    const verifyResult = document.getElementById('verify-result-container');
+    const verifyFileList = document.getElementById('verify-file-list');
+    
+    if (runVerifyBtn) {
+        runVerifyBtn.addEventListener('click', async () => {
+            const items = Array.from(verifyFileList.querySelectorAll('.file-item'));
+            if (items.length === 0) return;
+
+            const id = items[0].getAttribute('data-id');
+            const file = fileStore.get(id);
             if (!file) return;
+
+            // UI Reset
+            verifyResult.style.display = 'block';
+            runVerifyBtn.disabled = true;
+            runVerifyBtn.textContent = '🧬 SCANNING...';
+            
+            const badge = document.getElementById('verify-badge');
+            const statusText = document.getElementById('verify-status-text');
+            const ownerInfo = document.getElementById('verify-owner-info');
+            const dnaBox = document.getElementById('verify-dna-string');
+            const aiDesc = document.getElementById('verify-ai-desc');
+
+            badge.className = 'verification-badge';
+            badge.textContent = 'Scanning...';
+            statusText.textContent = 'Extracting Invisible DNA...';
+            ownerInfo.textContent = '';
+            dnaBox.textContent = '...';
+            aiDesc.textContent = 'Waiting for analysis...';
 
             const formData = new FormData();
             formData.append('file', file);
@@ -287,9 +355,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const response = await fetch('/verify', { method: 'POST', body: formData });
                 const result = await response.json();
-                alert(`Verification: ${result.status}\nOwner: ${result.owner_id || 'Unknown'}`);
+
+                if (result.status === "Authentic") {
+                    badge.classList.add('badge-authentic');
+                    badge.textContent = 'Authentic';
+                    statusText.textContent = 'Digital DNA Verified';
+                    ownerInfo.textContent = `Asset Owner: ${result.details.owner_id || 'Verified User'}`;
+                    dnaBox.textContent = result.dna;
+                    aiDesc.textContent = result.details.ai_description || "Certified authentic asset.";
+                    showToast("DNA Match Found!", "#00ff7f");
+                } else {
+                    badge.classList.add('badge-tampered');
+                    badge.textContent = 'Tampered';
+                    statusText.textContent = 'Verification Failed';
+                    ownerInfo.textContent = 'No matching DNA found in this asset.';
+                    dnaBox.textContent = 'CORRUPTED_OR_MISSING';
+                    aiDesc.textContent = "Warning: This asset does not contain a valid AquaGuard AI watermark.";
+                    showToast("Tamper Alert!", "#ff3c3c");
+                }
             } catch (err) {
-                alert("Verification failed.");
+                showToast("Verification failed.", "#ff3c3c");
+            } finally {
+                runVerifyBtn.disabled = false;
+                runVerifyBtn.textContent = '🔍 RUN AI DIAGNOSTIC';
             }
         });
     }
