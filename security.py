@@ -39,12 +39,15 @@ def generate_pov_frames(image_np: np.ndarray):
 
 # --- PILLAR 2: INVISIBLE PIXEL WATERMARKING (LSB) ---
 
-def apply_seal(image_np: np.ndarray, owner_id: str) -> bytes:
+def apply_seal(image_np: np.ndarray, data: str) -> bytes:
     """
-    Hides the Owner ID in the least significant bits of the image.
+    Hides the data string in the least significant bits of the image.
     Completely invisible to the human eye.
     """
-    data = f"OWNER:{owner_id}####" 
+    # Ensure delimiter is present
+    if "####" not in data:
+        data += "####" 
+        
     binary_data = ''.join(format(ord(i), '08b') for i in data)
     
     data_index = 0
@@ -68,24 +71,27 @@ def apply_seal(image_np: np.ndarray, owner_id: str) -> bytes:
 
 def verify_seal(image_np: np.ndarray):
     """
-    Extracts the hidden Owner ID from the pixels.
+    Extracts the hidden DNA string from the pixels.
     """
     binary_data = ""
-    # Only check the first few thousand pixels to save time
+    # Check more pixels for longer UUIDs and payloads
+    pixel_limit = 20000 
     pixel_count = 0
+    
     for row in image_np:
         for pixel in row:
             for channel in range(3):
                 binary_data += str(pixel[channel] & 1)
             pixel_count += 1
-            if pixel_count > 5000: break
-        if pixel_count > 5000: break
+            if pixel_count > pixel_limit: break
+        if pixel_count > pixel_limit: break
                 
     all_bytes = [binary_data[i:i+8] for i in range(0, len(binary_data), 8)]
     decoded_data = ""
     for byte in all_bytes:
         try:
-            decoded_data += chr(int(byte, 2))
+            char = chr(int(byte, 2))
+            decoded_data += char
             if "####" in decoded_data:
                 return decoded_data.replace("####", "")
         except:
