@@ -71,11 +71,7 @@ def apply_seal(image_np: np.ndarray, key: str, use_jamming: bool = True) -> byte
         processed = apply_moire_jamming(image_np)
         
     ret, buffer = cv2.imencode('.png', processed)
-    data = buffer.tobytes()
-    
-    aesgcm = AESGCM(derive_key(key))
-    nonce = os.urandom(12)
-    return nonce + aesgcm.encrypt(nonce, data, None)
+    return buffer.tobytes()
 
 def verify_seal(sealed_package: bytes, key: str):
     aesgcm = AESGCM(derive_key(key))

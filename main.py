@@ -166,31 +166,37 @@ async def get_library():
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
-    1. Decrypts using AES-256-GCM (Tamper detection).
-    2. Re-calculates pHash.
-    3. Verifies against DB and HMAC integrity signature.
+    1. Generates Digital DNA (pHash).
+    2. Verifies against the Vault Database.
     """
-    sealed_package = await file.read()
-    
     try:
-        from security import verify_seal, get_integrity_hmac
-        recovered_img = verify_seal(sealed_package, PRIVATE_KEY)
-    except Exception:
-        return JSONResponse(
-            status_code=401,
-            content={"status": "Tampered", "error": "Package decryption failed - Invalid Key or Corrupted Data"}
-        )
+        contents = await file.read()
+        
+        # 1. Digital DNA (pHash) verification
+        try:
+            current_phash = get_phash(contents)
+            print(f"DEBUG: Verifying DNA Hash: {current_phash}")
+            duplicate = check_duplicate_hash(current_phash)
+            
+            if duplicate:
+                return {
+                    "status": "Verified via DNA",
+                    "owner_id": duplicate.get("owner_id"),
+                    "timestamp": str(duplicate.get("created_at")),
+                    "method": "Perceptual Hashing (Digital DNA)"
+                }
+        except Exception as e:
+            print(f"DNA Verification Error: {e}")
 
-    # 1. Generate pHash of recovered image
-    recovered_pil = Image.fromarray(cv2.cvtColor(recovered_img, cv2.COLOR_BGR2RGB))
-    recovered_hash = str(imagehash.phash(recovered_pil))
-    
-    if MOCK_MODE:
-        return {
-            "status": "Verified (Simulation)",
-            "owner_id": "MOCK_OWNER",
-            "transaction_id": "MOCK_TXN_123"
-        }
+        return JSONResponse(
+            status_code=404,
+            content={"status": "Not Found", "error": "No ownership record found for this asset in the Vault."}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "error": f"Verification Failure: {str(e)}"}
+        )
 
     # 2. Check DB
     response = supabase.table("ownership").select("*").eq("phash_value", recovered_hash).limit(1).execute()
