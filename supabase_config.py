@@ -63,5 +63,5 @@ def upload_sealed_image(file_path: str, destination_name: str):
         supabase.storage.from_("sealed-assets").upload(destination_name, f, {"content-type": "image/png"})
     
     # Get public URL
-    url_res = supabase.storage.from_("sealed-assets").get_public_url(destination_name)
-    return url_res
+    public_url = supabase.storage.from_("sealed-assets").get_public_url(destination_name)
+    return public_url
