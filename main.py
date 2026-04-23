@@ -118,6 +118,20 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             content={"status": "Error", "message": str(e)}
         )
 
+@app.get("/library")
+async def get_library():
+    """Fetches all ownership records from Supabase."""
+    if MOCK_MODE:
+        return []
+    try:
+        response = supabase.table("ownership").select("*").order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "message": f"Library Fetch Failed: {str(e)}"}
+        )
+
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
