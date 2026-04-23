@@ -179,8 +179,12 @@
 
             // Validation successful - redirect to the new dashboard
             const submitBtn = document.getElementById('submit-btn');
+            const username = document.getElementById('username').value;
             submitBtn.textContent = "Setting up...";
             submitBtn.disabled = true;
+
+            // Save for the broadcast session
+            localStorage.setItem('broadcaster_id', username);
 
             setTimeout(() => {
                 window.location.href = 'broadcast_initial.html';

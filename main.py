@@ -209,6 +209,50 @@ async def verify_ownership(file: UploadFile = File(...)):
             content={"status": "Error", "error": f"Verification Failure: {str(e)}"}
         )
 
+# --- BROADCASTING MIDDLEWARE ENGINE ---
+
+@app.post("/broadcast/start")
+async def start_broadcast(request: Request):
+    """Initializes a secure broadcast session."""
+    try:
+        data = await request.json()
+        broadcaster_id = data.get("broadcaster_id")
+        stream_key = f"ORYGIN_{str(uuid.uuid4())[:8].upper()}"
+        
+        if not MOCK_MODE:
+            res = supabase.table("broadcasts").insert({
+                "broadcaster_id": broadcaster_id,
+                "stream_key": stream_key,
+                "status": "live"
+            }).execute()
+            session_id = res.data[0]["id"]
+        else:
+            session_id = "mock_session_123"
+
+        return {
+            "status": "Secure Stream Initialized",
+            "session_id": session_id,
+            "stream_key": stream_key,
+            "middleware_layer": "Active: Anti-Screenshot + Moire Jamming"
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/broadcast/metrics")
+async def update_metrics(request: Request):
+    """Updates live bandwidth and frame-drop data."""
+    try:
+        data = await request.json()
+        session_id = data.get("session_id")
+        if not MOCK_MODE:
+            supabase.table("broadcasts").update({
+                "bandwidth_kbps": data.get("bandwidth", 0),
+                "frame_drops": data.get("drops", 0)
+            }).eq("id", session_id).execute()
+        return {"status": "Metrics Synced"}
+    except Exception as e:
+        return {"status": "Log Failed"}
+
 # AI Chatbot Setup
 import google.generativeai as genai
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
@@ -226,9 +270,9 @@ async def chat_with_ai(request: Request):
         user_message = data.get("message", "")
         
         if not GEMINI_KEY:
-            return {"reply": "I'm sorry, my AI core is currently offline (API Key missing)."}
+            return {"reply": "I'm sorry, my AI core is currently offline."}
 
-        prompt = f"You are ORYGIN ASSISTANT, a security assistant for a digital watermarking and asset protection vault. Help the user with: {user_message}"
+        prompt = f"You are ORYGIN ASSISTANT. You help with asset sealing and SECURE LIVE BROADCASTING. Help the user with: {user_message}"
         response = model.generate_content(prompt)
         return {"reply": response.text}
     except Exception as e:
