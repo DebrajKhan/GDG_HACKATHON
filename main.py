@@ -217,12 +217,21 @@ async def start_broadcast(request: Request):
     try:
         data = await request.json()
         broadcaster_id = data.get("broadcaster_id")
+        title = data.get("title", "Untitled Broadcast")
+        description = data.get("description", "")
+        venue = data.get("venue", "General")
+        medium = data.get("medium", "Webcam")
+        
         stream_key = f"ORYGIN_{str(uuid.uuid4())[:8].upper()}"
         
         if not MOCK_MODE:
             res = supabase.table("broadcasts").insert({
                 "broadcaster_id": broadcaster_id,
                 "stream_key": stream_key,
+                "title": title,
+                "description": description,
+                "venue": venue,
+                "medium": medium,
                 "status": "live"
             }).execute()
             session_id = res.data[0]["id"]

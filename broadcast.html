@@ -200,6 +200,20 @@
         </div>
     </footer>
 
+    <script>
+        // Copy to Clipboard Utility
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.textContent === 'Copy') {
+                btn.addEventListener('click', (e) => {
+                    const input = e.target.previousElementSibling;
+                    input.select();
+                    document.execCommand('copy');
+                    e.target.textContent = 'Copied!';
+                    setTimeout(() => e.target.textContent = 'Copy', 2000);
+                });
+            }
+        });
+    </script>
     <script src="broadcast.js"></script>
 </body>
 </html>

@@ -87,11 +87,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isLive) {
             const broadcasterId = localStorage.getItem('broadcaster_id') || 'ANON_USER';
             
+            // Gather Metadata
+            const title = document.querySelector('input[placeholder="Enter a catchy title..."]').value;
+            const description = document.querySelector('textarea').value;
+            const venue = document.querySelectorAll('select')[0].value;
+            const medium = document.querySelectorAll('select')[1].value;
+
             try {
                 const res = await fetch('/broadcast/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ broadcaster_id: broadcasterId })
+                    body: JSON.stringify({ 
+                        broadcaster_id: broadcasterId,
+                        title: title,
+                        description: description,
+                        venue: venue,
+                        medium: medium
+                    })
                 });
                 const data = await res.json();
                 
