@@ -138,29 +138,30 @@ async def get_library():
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
-    EXACT LOCALHOST LOGIC:
-    1. Extracts DNA string from pixels.
-    2. Finds Transaction ID.
-    3. Searches Supabase by Transaction ID.
+    DOUBLE-LOCK VERIFICATION:
+    1. Tries to extract Invisible Pixel DNA (LSB).
+    2. Backup: Checks Perceptual DNA (pHash) in the database.
     """
     try:
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        from security import verify_seal
+        # 1. Try Pixel-to-Pixel Extraction
+        from security import verify_seal, get_phash
         extracted_dna = verify_seal(img)
-        print(f"DEBUG: Extracted DNA String: {extracted_dna}")
+        
+        # 2. Try Digital DNA (pHash) Backup
+        current_phash = get_phash(contents)
+        print(f"DEBUG: Checking Vault for DNA: {current_phash}")
+        duplicate = check_duplicate_hash(current_phash)
 
+        # SUCCESS CASE A: Pixel DNA Found
         if extracted_dna:
-            # Parse Transaction ID (format: ID: ABC12345)
             import re
             match = re.search(r"ID: ([a-z0-9-]+)", extracted_dna, re.IGNORECASE)
             if match:
                 trans_id = match.group(1)
-                print(f"DEBUG: Found Trans ID: {trans_id}")
-                
-                # Check Database
                 response = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
                 if response.data:
                     record = response.data[0]
@@ -170,12 +171,23 @@ async def verify_ownership(file: UploadFile = File(...)):
                         "transaction_id": trans_id,
                         "timestamp": str(record.get("created_at")),
                         "phash": record.get("phash_value"),
-                        "method": "Invisible Pixel DNA"
+                        "method": "Invisible Pixel DNA (Verified)"
                     }
+
+        # SUCCESS CASE B: Digital DNA (pHash) Match
+        if duplicate:
+             return {
+                "status": "Verified via DNA",
+                "owner_id": duplicate.get("owner_id"),
+                "transaction_id": duplicate.get("transaction_id"),
+                "timestamp": str(duplicate.get("created_at")),
+                "phash": current_phash,
+                "method": "Digital DNA Match (Vault Record)"
+            }
 
         return JSONResponse(
             status_code=404,
-            content={"status": "Not Found", "error": "No valid DNA found in this asset.", "phash": "CORRUPTED_OR_MISSING"}
+            content={"status": "Not Found", "error": "No valid DNA found in this asset.", "phash": current_phash}
         )
     except Exception as e:
         return JSONResponse(
