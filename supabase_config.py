@@ -20,34 +20,39 @@ else:
     print("Warning: Supabase credentials not found in .env. Entering MOCK MODE.")
     MOCK_MODE = True
 
-def check_duplicate_hash(new_hash: str, threshold: int = 15, trans_id: str = None):
-    """Checks Supabase for any existing hash. Gracefully handles missing columns."""
+def check_duplicate_hash(new_hash: str, threshold: int = 25):
+    """
+    ULTIMATE DNA SCANNER:
+    Finds the most similar record in the entire vault.
+    """
     if MOCK_MODE:
         return None 
     try:
-        if trans_id:
-            print(f"DEBUG: Found Trans ID in Pixels: {trans_id}. Searching Supabase...")
-            db_res = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
-            if db_res.data:
-                print(f"DEBUG: Match found in DB for Transaction ID {trans_id}")
-                return db_res.data[0]
-        
-        # Fetch all records safely
         response = supabase.table("ownership").select("*").execute()
         records = response.data or []
         
+        best_match = None
+        lowest_distance = 999
+        
         for record in records:
-            # Only check DNA if the record actually has a phash_value
             existing_hash = record.get("phash_value")
             if existing_hash:
                 from security import hamming_distance
                 try:
-                    if hamming_distance(new_hash, existing_hash) < threshold:
-                        return record
+                    distance = hamming_distance(new_hash, existing_hash)
+                    if distance < lowest_distance:
+                        lowest_distance = distance
+                        best_match = record
                 except:
                     continue
+        
+        # Only return if it's within our "Fuzzy" threshold
+        if best_match and lowest_distance < threshold:
+            print(f"DEBUG: Found Best Match with distance {lowest_distance}")
+            return best_match
+            
     except Exception as e:
-        print(f"DNA Search Warning (might be missing column): {e}")
+        print(f"DNA Search Error: {e}")
         
     return None
 
