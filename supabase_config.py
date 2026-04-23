@@ -20,7 +20,7 @@ else:
     print("Warning: Supabase credentials not found in .env. Entering MOCK MODE.")
     MOCK_MODE = True
 
-def check_duplicate_hash(new_hash: str, threshold: int = 5):
+def check_duplicate_hash(new_hash: str, threshold: int = 2):
     """Checks Supabase for any existing hash with Hamming Distance < threshold."""
     if MOCK_MODE:
         return None 
