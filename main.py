@@ -42,46 +42,54 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
     3. If unique, applies seal.
     4. Saves metadata and sealed file to Firebase.
     """
-    # Read file content
-    contents = await file.read()
-    
-    # 1. Generate Perceptual Hash
     try:
-        current_phash = get_phash(contents)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
+        # Read file content
+        try:
+            contents = await file.read()
+        except Exception as e:
+            return JSONResponse(status_code=400, content={"status": "Error", "error": f"Failed to read upload: {str(e)}"})
+        
+        # 1. Generate Perceptual Hash
+        try:
+            current_phash = get_phash(contents)
+        except Exception as e:
+             return JSONResponse(status_code=400, content={"status": "Error", "error": f"Invalid image file: {str(e)}"})
 
-    # 2. Check for Duplicates (Hamming Distance < 5)
-    duplicate = check_duplicate_hash(current_phash)
-    if duplicate:
-        return JSONResponse(
-            status_code=409,
-            content={
-                "status": "Already Claimed",
-                "owner_id": duplicate.get("owner_id"),
-                "timestamp": str(duplicate.get("timestamp"))
-            }
-        )
+        # 2. Check for Duplicates (Hamming Distance < 5)
+        try:
+            duplicate = check_duplicate_hash(current_phash)
+            if duplicate:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "status": "Already Claimed",
+                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('timestamp'))}"
+                    }
+                )
+        except Exception as e:
+            return JSONResponse(status_code=500, content={"status": "Error", "error": f"Database Lookup Error: {str(e)}"})
 
-    try:
-        # 3. Apply AES-256-GCM Seal (Impenetrable Encryption)
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        if img is None:
-             raise Exception("Failed to decode image. Please ensure you are uploading a valid image file.")
+        # 3. Apply AES-256-GCM Seal
+        try:
+            nparr = np.frombuffer(contents, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            
+            if img is None:
+                 raise Exception("Failed to decode image. Please ensure you are uploading a valid image file.")
 
-        sealed_package = apply_seal(img, PRIVATE_KEY)
-        
-        # 4. Save Metadata & Signed Hash
-        from security import get_integrity_hmac
-        record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
-        
-        transaction_id = str(uuid.uuid4())
-        temp_path = f"temp_{transaction_id}.sealed"
-        
-        with open(temp_path, "wb") as f:
-            f.write(sealed_package)
+            sealed_package = apply_seal(img, PRIVATE_KEY)
+            
+            # 4. Save Metadata & Signed Hash
+            from security import get_integrity_hmac
+            record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
+            
+            transaction_id = str(uuid.uuid4())
+            temp_path = f"temp_{transaction_id}.sealed"
+            
+            with open(temp_path, "wb") as f:
+                f.write(sealed_package)
+        except Exception as e:
+             return JSONResponse(status_code=500, content={"status": "Error", "error": f"Image Processing Error: {str(e)}"})
 
         try:
             # Upload to Storage
@@ -97,9 +105,6 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
                 }).execute()
             
         except Exception as e:
-            # Clean up the temp file if storage/db fails
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
             raise Exception(f"Database/Storage Error: {str(e)}")
             
         finally:
