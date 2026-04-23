@@ -58,9 +58,9 @@ def upload_sealed_image(file_path: str, destination_name: str):
         return f"https://mockstorage.com/{destination_name}"
 
     with open(file_path, "rb") as f:
-        # destination_name should be something like 'sealed/abc-123.png'
+        # destination_name should be something like 'sealed/abc-123.jpg'
         # Supabase storage upload
-        supabase.storage.from_("sealed-assets").upload(destination_name, f, {"content-type": "image/png"})
+        supabase.storage.from_("sealed-assets").upload(destination_name, f, {"content-type": "image/jpeg"})
     
     # Get public URL
     public_url = supabase.storage.from_("sealed-assets").get_public_url(destination_name)
