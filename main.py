@@ -110,12 +110,12 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             "status": "Impenetrably Sealed",
             "transaction_id": transaction_id,
             "pHash": current_phash,
-            "storage_url": storage_url
+            "sealed_url": storage_url
         }
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"status": "Error", "message": str(e)}
+            content={"status": "Error", "error": str(e)}
         )
 
 @app.get("/library")
