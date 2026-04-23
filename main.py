@@ -13,7 +13,27 @@ from PIL import Image
 import io
 import imagehash
 
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi import Request
+
 app = FastAPI(title="Digital Watermarking Service")
+
+# GLOBAL SAFETY NET: Catch every single error and force it to be JSON
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status": "Error", "error": f"Global Server Crash: {str(exc)}"}
+    )
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "Error", "error": str(exc.detail)}
+    )
 
 # Add CORS middleware
 app.add_middleware(
