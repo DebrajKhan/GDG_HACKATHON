@@ -63,45 +63,60 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             }
         )
 
-    # 3. Apply AES-256-GCM Seal (Impenetrable Encryption)
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    sealed_package = apply_seal(img, PRIVATE_KEY)
-    
-    # 4. Save Metadata & Signed Hash
-    from security import get_integrity_hmac
-    record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
-    
-    transaction_id = str(uuid.uuid4())
-    temp_path = f"temp_{transaction_id}.sealed"
-    
-    with open(temp_path, "wb") as f:
-        f.write(sealed_package)
-
     try:
-        # Upload to Storage
-        storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.sealed")
+        # 3. Apply AES-256-GCM Seal (Impenetrable Encryption)
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # Save Metadata with Integrity Signature
-        if not MOCK_MODE:
-            supabase.table("ownership").insert({
-                "owner_id": owner_id,
-                "phash_value": current_phash,
-                "transaction_id": transaction_id,
-                "integrity_sig": record_signature
-            }).execute()
-        
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if img is None:
+             raise Exception("Failed to decode image. Please ensure you are uploading a valid image file.")
 
-    return {
-        "status": "Impenetrably Sealed",
-        "transaction_id": transaction_id,
-        "pHash": current_phash,
-        "storage_url": storage_url
-    }
+        sealed_package = apply_seal(img, PRIVATE_KEY)
+        
+        # 4. Save Metadata & Signed Hash
+        from security import get_integrity_hmac
+        record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
+        
+        transaction_id = str(uuid.uuid4())
+        temp_path = f"temp_{transaction_id}.sealed"
+        
+        with open(temp_path, "wb") as f:
+            f.write(sealed_package)
+
+        try:
+            # Upload to Storage
+            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.sealed")
+            
+            # Save Metadata with Integrity Signature
+            if not MOCK_MODE:
+                supabase.table("ownership").insert({
+                    "owner_id": owner_id,
+                    "phash_value": current_phash,
+                    "transaction_id": transaction_id,
+                    "integrity_sig": record_signature
+                }).execute()
+            
+        except Exception as e:
+            # Clean up the temp file if storage/db fails
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise Exception(f"Database/Storage Error: {str(e)}")
+            
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+        return {
+            "status": "Impenetrably Sealed",
+            "transaction_id": transaction_id,
+            "pHash": current_phash,
+            "storage_url": storage_url
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"status": "Error", "message": str(e)}
+        )
 
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
