@@ -71,31 +71,38 @@ def apply_seal(image_np: np.ndarray, data: str) -> bytes:
 
 def verify_seal(image_np: np.ndarray):
     """
-    Extracts the hidden DNA string from the pixels.
+    ULTIMATE VERIFICATION ENGINE:
+    Extracts the hidden DNA signature from pixels using high-depth scanning.
     """
-    binary_data = ""
-    # Check more pixels for longer UUIDs and payloads
-    pixel_limit = 20000 
-    pixel_count = 0
-    
-    for row in image_np:
-        for pixel in row:
-            for channel in range(3):
-                binary_data += str(pixel[channel] & 1)
-            pixel_count += 1
+    try:
+        binary_data = ""
+        # Scan up to 50,000 pixels for maximum coverage
+        pixel_limit = 50000 
+        pixel_count = 0
+        
+        for row in image_np:
+            for pixel in row:
+                for channel in range(3):
+                    binary_data += str(pixel[channel] & 1)
+                pixel_count += 1
+                if pixel_count > pixel_limit: break
             if pixel_count > pixel_limit: break
-        if pixel_count > pixel_limit: break
-                
-    all_bytes = [binary_data[i:i+8] for i in range(0, len(binary_data), 8)]
-    decoded_data = ""
-    for byte in all_bytes:
-        try:
-            char = chr(int(byte, 2))
-            decoded_data += char
-            if "####" in decoded_data:
-                return decoded_data.replace("####", "")
-        except:
-            continue
+                    
+        # Convert bits to characters
+        all_bytes = [binary_data[i:i+8] for i in range(0, len(binary_data), 8)]
+        decoded_data = ""
+        for byte in all_bytes:
+            try:
+                char = chr(int(byte, 2))
+                decoded_data += char
+                # Check for the end delimiter
+                if "####" in decoded_data:
+                    # Return the clean payload
+                    return decoded_data.split("####")[0]
+            except:
+                continue
+    except Exception as e:
+        print(f"Extraction Error: {e}")
             
     return None
 

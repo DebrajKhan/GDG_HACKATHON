@@ -138,57 +138,71 @@ async def get_library():
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
-    DOUBLE-LOCK VERIFICATION:
-    1. Tries to extract Invisible Pixel DNA (LSB).
-    2. Backup: Checks Perceptual DNA (pHash) in the database.
+    ULTIMATE AUTHENTICITY CHECK:
+    Combines Pixel-level Steganography and AI-Powered Perceptual DNA.
     """
     try:
+        # Step 1: Read and Decode the Image
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # 1. Try Pixel-to-Pixel Extraction
+        if img is None:
+            return JSONResponse(status_code=400, content={"status": "Error", "error": "Invalid file format. Please upload a PNG image."})
+
+        # Step 2: High-Depth Pixel Extraction (Invisible Stamp)
         from security import verify_seal, get_phash
-        extracted_dna = verify_seal(img)
+        pixel_dna = verify_seal(img)
+        print(f"DEBUG: Pixel Extraction Result: {pixel_dna}")
+
+        # Step 3: Perceptual DNA Backup (AI Hashing)
+        image_dna = get_phash(contents)
+        print(f"DEBUG: Digital DNA Hash: {image_dna}")
         
-        # 2. Try Digital DNA (pHash) Backup
-        current_phash = get_phash(contents)
-        print(f"DEBUG: Checking Vault for DNA: {current_phash}")
-        duplicate = check_duplicate_hash(current_phash)
+        # SEARCH LOGIC: Try Pixel ID first, then DNA Match
+        match_found = False
+        record = None
 
-        # SUCCESS CASE A: Pixel DNA Found
-        if extracted_dna:
+        # A. Try looking up by the ID extracted from pixels
+        if pixel_dna:
             import re
-            match = re.search(r"ID: ([a-z0-9-]+)", extracted_dna, re.IGNORECASE)
-            if match:
-                trans_id = match.group(1)
-                response = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
-                if response.data:
-                    record = response.data[0]
-                    return {
-                        "status": "Verified Authentic",
-                        "owner_id": record.get("owner_id"),
-                        "transaction_id": trans_id,
-                        "timestamp": str(record.get("created_at")),
-                        "phash": record.get("phash_value"),
-                        "method": "Invisible Pixel DNA (Verified)"
-                    }
+            id_match = re.search(r"ID: ([a-z0-9-]+)", pixel_dna, re.IGNORECASE)
+            if id_match:
+                trans_id = id_match.group(1)
+                db_res = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
+                if db_res.data:
+                    record = db_res.data[0]
+                    match_found = True
+                    method = "Invisible Pixel DNA (High Confidence)"
 
-        # SUCCESS CASE B: Digital DNA (pHash) Match
-        if duplicate:
-             return {
-                "status": "Verified via DNA",
-                "owner_id": duplicate.get("owner_id"),
-                "transaction_id": duplicate.get("transaction_id"),
-                "timestamp": str(duplicate.get("created_at")),
-                "phash": current_phash,
-                "method": "Digital DNA Match (Vault Record)"
+        # B. Fallback to AI DNA Matching if pixel stamp was damaged
+        if not match_found:
+            dna_match = check_duplicate_hash(image_dna)
+            if dna_match:
+                record = dna_match
+                match_found = True
+                method = "AI Perceptual DNA (Pattern Recognition)"
+
+        # FINAL VERDICT
+        if match_found:
+            return {
+                "status": "Verified Authentic",
+                "owner_id": record.get("owner_id"),
+                "transaction_id": record.get("transaction_id"),
+                "timestamp": str(record.get("created_at")),
+                "phash": record.get("phash_value", image_dna),
+                "method": method
             }
 
         return JSONResponse(
             status_code=404,
-            content={"status": "Not Found", "error": "No valid DNA found in this asset.", "phash": current_phash}
+            content={
+                "status": "Not Found", 
+                "error": "No valid ownership records or DNA patterns found for this asset.",
+                "phash": image_dna
+            }
         )
+
     except Exception as e:
         return JSONResponse(
             status_code=500,
