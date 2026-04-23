@@ -70,7 +70,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             return JSONResponse(status_code=400, content={"status": "Error", "error": f"Failed to read upload: {str(e)}"})
         
         # 3. Apply Invisible DNA Injection (Pixel-to-Pixel)
-        transaction_id = str(uuid.uuid4())[:8].upper()
+        transaction_id = str(uuid.uuid4())
         
         # Original Localhost Payload format
         dna_payload = f"App: ORYGIN AI | Owner: {owner_id} | ID: {transaction_id} ####"
@@ -155,7 +155,7 @@ async def verify_ownership(file: UploadFile = File(...)):
         if extracted_dna:
             # Parse Transaction ID (format: ID: ABC12345)
             import re
-            match = re.search(r"ID: ([A-Z0-9]+)", extracted_dna)
+            match = re.search(r"ID: ([a-z0-9-]+)", extracted_dna, re.IGNORECASE)
             if match:
                 trans_id = match.group(1)
                 print(f"DEBUG: Found Trans ID: {trans_id}")
@@ -188,7 +188,7 @@ import google.generativeai as genai
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 else:
     print("Warning: GEMINI_API_KEY not found. Chatbot will be disabled.")
 
