@@ -78,7 +78,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             if img is None:
                  raise Exception("Failed to decode image. Please ensure you are uploading a valid image file.")
 
-            sealed_package = apply_seal(img, PRIVATE_KEY)
+            sealed_package = apply_seal(img, owner_id)
             
             # NOW GENERATE DNA FROM THE SEALED PACKAGE
             current_phash = get_phash(sealed_package)
@@ -100,7 +100,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
             record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
             
             transaction_id = str(uuid.uuid4())
-            temp_path = f"temp_{transaction_id}.jpg"
+            temp_path = f"temp_{transaction_id}.png"
             
             with open(temp_path, "wb") as f:
                 f.write(sealed_package)
@@ -112,7 +112,7 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
         try:
             # Upload to Storage
             print(f"DEBUG: Uploading to Supabase Storage...")
-            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.jpg")
+            storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.png")
             print(f"DEBUG: Upload successful. URL: {storage_url}")
             
             # Save Metadata with Integrity Signature

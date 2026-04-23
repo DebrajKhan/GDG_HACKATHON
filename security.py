@@ -37,50 +37,61 @@ def generate_pov_frames(image_np: np.ndarray):
     
     return frame_a, frame_b
 
-# --- PILLAR 2: ANTI-CAMERA MOIRÉ JAMMING ---
+# --- PILLAR 2: INVISIBLE PIXEL WATERMARKING (LSB) ---
 
-def apply_moire_jamming(image_np: np.ndarray):
+def apply_seal(image_np: np.ndarray, owner_id: str) -> bytes:
     """
-    Injects a high-frequency invisible grid.
-    Causes 'Aliasing' and 'Moiré' rainbow swirls when photographed by a phone camera.
+    Hides the Owner ID in the least significant bits of the image.
+    Completely invisible to the human eye.
     """
-    h, w, c = image_np.shape
-    # Create a high-frequency sinusoidal grid
-    x = np.linspace(0, w, w)
-    y = np.linspace(0, h, h)
-    X, Y = np.meshgrid(x, y)
+    data = f"OWNER:{owner_id}####" 
+    binary_data = ''.join(format(ord(i), '08b') for i in data)
     
-    # Frequency set to fight with most CMOS sensors (phone cameras)
-    grid = (np.sin(X * 0.5) * np.cos(Y * 0.5) * 5).astype(np.int16)
+    data_index = 0
+    data_len = len(binary_data)
+    output = image_np.copy()
     
-    # Apply grid to all channels
-    jammed = image_np.astype(np.int16)
-    for i in range(3):
-        jammed[:, :, i] += grid
+    # Inject bits into pixels
+    for row in output:
+        for pixel in row:
+            for channel in range(3):
+                if data_index < data_len:
+                    pixel[channel] = (int(pixel[channel]) & 254) | int(binary_data[data_index])
+                    data_index += 1
+                else:
+                    break
+            if data_index >= data_len: break
+        if data_index >= data_len: break
         
-    return np.clip(jammed, 0, 255).astype(np.uint8)
-
-# --- CRYPTOGRAPHIC CORE ---
-
-def apply_seal(image_np: np.ndarray, key: str, use_jamming: bool = True) -> bytes:
-    """
-    Applies Jamming, then AES-256-GCM encryption.
-    """
-    processed = image_np
-    if use_jamming:
-        processed = apply_moire_jamming(image_np)
-        
-    ret, buffer = cv2.imencode('.jpg', processed)
+    ret, buffer = cv2.imencode('.png', output)
     return buffer.tobytes()
 
-def verify_seal(sealed_package: bytes, key: str):
-    aesgcm = AESGCM(derive_key(key))
-    nonce = sealed_package[:12]
-    ciphertext = sealed_package[12:]
-    
-    decrypted_data = aesgcm.decrypt(nonce, ciphertext, None)
-    nparr = np.frombuffer(decrypted_data, np.uint8)
-    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+def verify_seal(image_np: np.ndarray):
+    """
+    Extracts the hidden Owner ID from the pixels.
+    """
+    binary_data = ""
+    # Only check the first few thousand pixels to save time
+    pixel_count = 0
+    for row in image_np:
+        for pixel in row:
+            for channel in range(3):
+                binary_data += str(pixel[channel] & 1)
+            pixel_count += 1
+            if pixel_count > 5000: break
+        if pixel_count > 5000: break
+                
+    all_bytes = [binary_data[i:i+8] for i in range(0, len(binary_data), 8)]
+    decoded_data = ""
+    for byte in all_bytes:
+        try:
+            decoded_data += chr(int(byte, 2))
+            if "####" in decoded_data:
+                return decoded_data.replace("####", "")
+        except:
+            continue
+            
+    return None
 
 def get_integrity_hmac(phash: str, owner_id: str, key: str) -> str:
     import hmac
