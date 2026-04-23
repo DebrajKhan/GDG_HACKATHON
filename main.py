@@ -69,26 +69,6 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
         except Exception as e:
             return JSONResponse(status_code=400, content={"status": "Error", "error": f"Failed to read upload: {str(e)}"})
         
-        # 1. Generate Perceptual Hash
-        try:
-            current_phash = get_phash(contents)
-        except Exception as e:
-             return JSONResponse(status_code=400, content={"status": "Error", "error": f"Invalid image file: {str(e)}"})
-
-        # 2. Check for Duplicates (Hamming Distance < 5)
-        try:
-            duplicate = check_duplicate_hash(current_phash)
-            if duplicate:
-                return JSONResponse(
-                    status_code=409,
-                    content={
-                        "status": "Already Claimed",
-                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
-                    }
-                )
-        except Exception as e:
-            return JSONResponse(status_code=500, content={"status": "Error", "error": f"Database Lookup Error: {str(e)}"})
-
         # 3. Apply AES-256-GCM Seal
         try:
             print(f"DEBUG: Starting AES Seal for {owner_id}")
@@ -100,6 +80,21 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
 
             sealed_package = apply_seal(img, PRIVATE_KEY)
             
+            # NOW GENERATE DNA FROM THE SEALED PACKAGE
+            current_phash = get_phash(sealed_package)
+            print(f"DEBUG: Generated Sealed DNA: {current_phash}")
+
+            # 2. Check for Duplicates (Now checking against sealed DNA)
+            duplicate = check_duplicate_hash(current_phash)
+            if duplicate:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "status": "Already Claimed",
+                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
+                    }
+                )
+
             # 4. Save Metadata & Signed Hash
             from security import get_integrity_hmac
             record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
