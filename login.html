@@ -146,6 +146,12 @@
 
         // --- GOOGLE LOGIN ---
         googleBtn.addEventListener('click', async () => {
+            const isBroadcaster = document.getElementById('role-broadcaster').checked;
+            if (isBroadcaster) {
+                window.location.href = 'broadcaster_login.html';
+                return;
+            }
+
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: { redirectTo: window.location.origin + '/index.html' }

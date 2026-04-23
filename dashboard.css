@@ -36,11 +36,11 @@
     margin-bottom: 0.5rem;
     letter-spacing: -5px;
     line-height: 0.9;
-    background: linear-gradient(135deg, #fff 0%, var(--accent-primary) 50%, var(--accent-secondary) 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #007bff 50%, #00d2ff 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.2));
+    filter: drop-shadow(0 0 30px rgba(0, 210, 255, 0.4));
 }
 
 .app-motto {

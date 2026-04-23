@@ -1,0 +1,30 @@
+/* Glassmorphism Card Utility */
+.glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+/* Subtle Glow on text */
+.text-glow {
+    text-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+}
+
+/* Smooth hover transition */
+.hover-glow {
+    transition: all 0.3s ease;
+}
+.hover-glow:hover {
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+}
+
+/* Styling the date input icon to match theme */
+.custom-date::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.5);
+    cursor: pointer;
+}
+.custom-date::-webkit-calendar-picker-indicator:hover {
+    filter: invert(1) opacity(0.8);
+}

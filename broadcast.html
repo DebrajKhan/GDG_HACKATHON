@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORYGIN | Broadcaster Portal</title>
+    <!-- Montserrat Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            base: '#0b0f14',
+                            secondary: '#0f1720',
+                            blue: '#3b82f6',
+                            blueDark: '#2563eb',
+                            blueLight: '#60a5fa',
+                            input: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="broadcast.css">
+</head>
+<body class="antialiased min-h-screen flex flex-col selection:bg-brand-blue selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 bg-brand-base/80 backdrop-blur-md border-b border-white/10 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <a href="broadcast_initial.html" class="text-gray-400 hover:text-white transition-colors" title="Back to Dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </a>
+                <a href="dashboard.html" class="text-2xl font-bold tracking-[0.2em] text-white flex items-center gap-2 hover:text-brand-blueLight transition-colors">
+                    ORYGIN
+                </a>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+                <a href="dashboard.html" class="text-gray-300 hover:text-white transition-colors">DASHBOARD</a>
+                <div class="flex items-center gap-3 bg-brand-input px-4 py-2 rounded-full border border-white/10">
+                    <div class="w-8 h-8 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blueLight">
+                        👤
+                    </div>
+                    <span class="text-white text-xs tracking-wider">BROADCASTER</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-6 py-12 relative z-10">
+        
+        <div class="mb-10">
+            <h1 class="text-4xl font-bold text-white mb-2 tracking-wide text-glow">Stream Setup</h1>
+            <p class="text-gray-400 font-light tracking-wide">Configure your broadcast details and go live securely.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Setup Form Column -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass-card p-8">
+                    <h2 class="text-xl font-semibold text-white mb-6 tracking-wide border-b border-white/10 pb-4">Stream Information</h2>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Stream Title</label>
+                            <input type="text" placeholder="Enter a catchy title..." class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Description</label>
+                            <textarea rows="3" placeholder="What are you broadcasting today?" class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all"></textarea>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">General Venue</label>
+                                <select class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all appearance-none custom-select">
+                                    <option value="" disabled selected>Select a venue...</option>
+                                    <option value="gaming">Gaming</option>
+                                    <option value="irl">Just Chatting / IRL</option>
+                                    <option value="music">Music & Performing Arts</option>
+                                    <option value="education">Education & Tech</option>
+                                    <option value="sports">Sports & Fitness</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Medium</label>
+                                <select class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all appearance-none custom-select">
+                                    <option value="" disabled selected>Select your medium...</option>
+                                    <option value="webcam">Integrated Webcam</option>
+                                    <option value="camera">External Camera (RTMP)</option>
+                                    <option value="mobile">Mobile Device</option>
+                                    <option value="screen">Screen Share</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-8">
+                    <h2 class="text-xl font-semibold text-white mb-6 tracking-wide border-b border-white/10 pb-4">Stream Keys & Server</h2>
+                    <p class="text-sm text-gray-400 mb-4 font-light">Use these details in your broadcasting software (like OBS or Streamlabs) if you selected "External Camera (RTMP)". Keep your Stream Key secret.</p>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">RTMP Server URL</label>
+                            <div class="flex">
+                                <input type="text" readonly value="rtmp://live.orygin.tv/app" class="flex-grow bg-brand-input border border-white/10 rounded-l-lg p-3 text-gray-300 font-mono text-sm focus:outline-none">
+                                <button class="bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-blueLight border border-l-0 border-white/10 rounded-r-lg px-4 font-medium transition-colors">Copy</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Stream Key</label>
+                            <div class="flex">
+                                <input type="password" readonly value="live_123456789_abcdefghijklmnopqrstuvwxyz" class="flex-grow bg-brand-input border border-white/10 rounded-l-lg p-3 text-gray-300 font-mono text-sm focus:outline-none">
+                                <button class="bg-brand-blue/20 hover:bg-brand-blue/30 text-brand-blueLight border border-l-0 border-white/10 rounded-r-lg px-4 font-medium transition-colors">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview & Action Column -->
+            <div class="space-y-6">
+                <!-- Video Preview -->
+                <div class="glass-card overflow-hidden">
+                    <div class="aspect-video bg-black relative flex items-center justify-center border-b border-white/10">
+                        <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMxMTEiPjwvcmVjdD48cGF0aCBkPSJNMCAwTDQgNFpNNCBMIDBaIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSI+PC9wYXRoPjwvc3ZnPg==')] opacity-30"></div>
+                        
+                        <div class="text-center z-10">
+                            <div class="w-16 h-16 rounded-full bg-brand-input/80 border border-white/10 flex items-center justify-center mx-auto mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <p class="text-gray-400 text-sm tracking-wide font-medium">Awaiting Signal...</p>
+                        </div>
+
+                        <!-- Live Badge (Hidden by default) -->
+                        <div class="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded tracking-widest hidden">
+                            LIVE
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <h3 class="text-white font-medium mb-1">Preview</h3>
+                        <p class="text-xs text-gray-400 font-light mb-6">Check your audio and video levels before going live.</p>
+                        
+                        <button class="w-full bg-gradient-to-r from-brand-blue to-brand-blueDark text-white py-4 rounded-xl hover-glow font-bold tracking-widest text-sm transition-transform hover:-translate-y-1 uppercase shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                            GO LIVE
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Status Card -->
+                <div class="glass-card p-6">
+                    <h3 class="text-sm font-semibold text-white mb-4 tracking-wider uppercase border-b border-white/10 pb-2">Stream Health</h3>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400 text-sm">Status</span>
+                            <span class="text-gray-500 text-sm font-medium flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-gray-500"></span> Offline
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400 text-sm">Bitrate</span>
+                            <span class="text-white text-sm font-mono">0 kbps</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-400 text-sm">Dropped Frames</span>
+                            <span class="text-white text-sm font-mono">0 (0%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-brand-base mt-auto relative z-10">
+        <div class="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+            <p class="tracking-wider uppercase">University of Engineering and Management, Kolkata</p>
+            <p class="tracking-wider uppercase">&copy; 2026 ORYGIN. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -70,9 +70,13 @@ app.post("/login", async (req, res) => {
 });
 
 // 3. Helper to call Python CLI
+const pythonPath = fs.existsSync(path.join(__dirname, "venv", "Scripts", "python.exe")) 
+    ? path.join(__dirname, "venv", "Scripts", "python.exe") 
+    : "python";
+
 function callPython(action, key, buffer) {
     return new Promise((resolve, reject) => {
-        const py = spawn("python", ["security_cli.py", action, "--key", key]);
+        const py = spawn(pythonPath, ["security_cli.py", action, "--key", key]);
         let output = [];
         let errorOutput = "";
 

@@ -1,16 +1,16 @@
 :root {
-    --bg-base: #050508;
+    --bg-base: #0b0f14;
     --text-primary: #ffffff;
-    --text-secondary: #8a8aa3;
+    --text-secondary: #9ca3af;
 
-    /* Cyber-Gold Palette */
-    --accent-primary: hsl(45, 100%, 50%);
-    --accent-secondary: hsl(35, 100%, 45%);
-    --accent-tertiary: hsl(50, 100%, 60%);
+    /* Blue Palette */
+    --accent-primary: #3b82f6;
+    --accent-secondary: #2563eb;
+    --accent-tertiary: #60a5fa;
 
     /* Premium Glass */
-    --glass-bg: rgba(10, 10, 15, 0.75);
-    --glass-border: rgba(255, 215, 0, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
     --glass-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
     --glass-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
@@ -19,20 +19,20 @@
     --bg-base: #f8fafc;
     --text-primary: #0f172a;
     --text-secondary: #64748b;
-    --accent-primary: #ca8a04;
+    --accent-primary: #2563eb;
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.05);
     --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     background-color: var(--bg-base);
     color: var(--text-primary);
     line-height: 1.6;
     background-image:
-        radial-gradient(circle at 20% 20%, rgba(255, 215, 0, 0.03) 0%, transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(255, 165, 0, 0.03) 0%, transparent 40%);
+        radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(96, 165, 250, 0.03) 0%, transparent 40%);
 }
 
 .glass-card {
@@ -67,7 +67,7 @@ body {
 /* Cyber-Scan Animation */
 .drop-zone.dragover {
     border-color: var(--accent-primary);
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);
 }
 
 .drop-zone::after {
@@ -103,13 +103,13 @@ body {
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    box-shadow: 0 10px 20px rgba(255, 215, 0, 0.2);
+    box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .btn-primary:hover {
     transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 15px 30px rgba(255, 215, 0, 0.4);
+    box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
 }
 
 /* Galaxy Background Animation */
@@ -133,17 +133,17 @@ body {
     position: absolute;
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(circle at 50% 50%, rgba(255, 215, 0, 0.15), transparent 60%),
-        radial-gradient(circle at 80% 20%, rgba(255, 165, 0, 0.1), transparent 50%),
-        radial-gradient(circle at 20% 80%, rgba(255, 195, 0, 0.1), transparent 50%);
+    background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15), transparent 60%),
+        radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.1), transparent 50%),
+        radial-gradient(circle at 20% 80%, rgba(37, 99, 235, 0.1), transparent 50%);
     filter: blur(60px);
     animation: drift 30s ease-in-out infinite alternate;
 }
 
 [data-theme="light"] .nebula {
-    background: radial-gradient(circle at 50% 50%, rgba(184, 134, 11, 0.08), transparent 60%),
-        radial-gradient(circle at 80% 20%, rgba(210, 105, 30, 0.05), transparent 50%),
-        radial-gradient(circle at 20% 80%, rgba(218, 165, 32, 0.05), transparent 50%);
+    background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08), transparent 60%),
+        radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.05), transparent 50%),
+        radial-gradient(circle at 20% 80%, rgba(37, 99, 235, 0.05), transparent 50%);
 }
 
 @keyframes drift {
@@ -165,7 +165,7 @@ h1,
 h2,
 h3,
 .logo {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .gradient-text {
@@ -650,11 +650,11 @@ h3,
 .vault-btn {
     padding: 1rem 2rem;
     font-size: 1.1rem;
-    background: linear-gradient(135deg, #FFDF00, #DAA520);
-    color: #1a1a2e;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: #ffffff;
     font-weight: 800;
-    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-    border: 2px solid #FFF7B0;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    border: 2px solid var(--accent-tertiary);
     white-space: nowrap;
     border-radius: 30px;
     cursor: pointer;
@@ -662,8 +662,8 @@ h3,
 }
 
 .vault-btn:hover {
-    box-shadow: 0 8px 25px rgba(255, 215, 0, 0.6);
-    background: linear-gradient(135deg, #FFF200, #FFD700);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
+    background: linear-gradient(135deg, var(--accent-tertiary), var(--accent-primary));
 }
 
 .vault-btn.vault-btn-disabled {
@@ -883,7 +883,7 @@ h3,
 }
 
 .nav-btn {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     letter-spacing: 1px;
     text-transform: uppercase;
     font-size: 0.85rem;
@@ -892,7 +892,7 @@ h3,
 /* Asset Card - Holographic Upgrade */
 .asset-card {
     background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.08);
     backdrop-filter: blur(10px);
     transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
     position: relative;
@@ -906,7 +906,7 @@ h3,
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
     opacity: 0;
     transition: opacity 0.5s ease;
     pointer-events: none;
@@ -915,7 +915,7 @@ h3,
 .asset-card:hover {
     transform: translateY(-10px) scale(1.02);
     border-color: var(--accent-primary);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.1);
 }
 
 .asset-card:hover::before {
@@ -923,7 +923,7 @@ h3,
 }
 
 .asset-owner {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Montserrat', sans-serif;
     text-transform: uppercase;
     letter-spacing: 2px;
 }

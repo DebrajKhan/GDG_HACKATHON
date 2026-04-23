@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORYGIN | Broadcaster Registration</title>
+    <!-- Montserrat Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            base: '#0b0f14',
+                            secondary: '#0f1720',
+                            blue: '#3b82f6',
+                            blueDark: '#2563eb',
+                            blueLight: '#60a5fa',
+                            input: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="broadcaster_login.css">
+</head>
+<body class="antialiased min-h-screen flex items-center justify-center selection:bg-brand-blue selection:text-white relative overflow-hidden">
+
+    <!-- Decorative Background -->
+    <div class="absolute inset-0 z-0">
+        <div class="absolute inset-0 bg-brand-base"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-3xl max-h-[800px] bg-brand-blue/10 blur-[120px] rounded-full pointer-events-none"></div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="w-full max-w-md p-6 relative z-10">
+        
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <a href="index.html" class="inline-block text-3xl font-bold tracking-[0.2em] text-white hover:text-brand-blueLight transition-colors text-glow">
+                ORYGIN
+            </a>
+            <p class="text-brand-blueLight text-sm font-medium tracking-widest uppercase mt-2">Creator Portal Setup</p>
+        </div>
+
+        <!-- Form Card -->
+        <div class="glass-card p-8 shadow-2xl relative overflow-hidden transition-transform duration-300">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-blueLight via-brand-blue to-brand-blueDark"></div>
+            
+            <h2 class="text-2xl font-bold text-white mb-2">Complete Profile</h2>
+            <p class="text-gray-400 text-sm mb-8 font-light">Set up your broadcaster identity to continue.</p>
+
+            <form id="broadcaster-form" class="space-y-5">
+                
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Username</label>
+                    <input type="text" id="username" placeholder="e.g. clay_ton00777" required
+                        class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all">
+                </div>
+                
+                <!-- Birth Date -->
+                <div>
+                    <label for="dob" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Date of Birth</label>
+                    <input type="date" id="dob" required min="1970-01-01" max="2008-12-31"
+                        class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-gray-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all custom-date">
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Secure Password</label>
+                    <input type="password" id="password" placeholder="Create a strong password" required
+                        class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all">
+                    
+                    <!-- Password Rules Hint -->
+                    <div class="mt-3 text-xs space-y-1" id="password-rules">
+                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-length">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> Minimum 8 characters
+                        </p>
+                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-number">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> At least one number
+                        </p>
+                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-special">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> At least one special character (!@#$%^&*)
+                        </p>
+                    </div>
+                </div>
+
+                <div id="error-message" class="hidden text-red-400 text-xs font-medium mt-2 bg-red-400/10 p-2 rounded border border-red-400/20"></div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-brand-blue to-brand-blueDark text-white py-3.5 rounded-xl hover-glow font-bold tracking-widest text-sm transition-transform hover:-translate-y-0.5 uppercase shadow-[0_0_20px_rgba(59,130,246,0.3)] mt-8">
+                    Continue to Dashboard
+                </button>
+            </form>
+        </div>
+        
+        <div class="text-center mt-6">
+            <a href="login.html" class="text-gray-500 hover:text-white text-xs tracking-wider transition-colors">
+                &larr; Back to Login
+            </a>
+        </div>
+    </main>
+
+    <!-- Validation Script -->
+    <script>
+        const form = document.getElementById('broadcaster-form');
+        const passwordInput = document.getElementById('password');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Rule Indicators
+        const ruleLength = document.getElementById('rule-length');
+        const ruleNumber = document.getElementById('rule-number');
+        const ruleSpecial = document.getElementById('rule-special');
+
+        // Regex Patterns
+        const hasNumber = /\d/;
+        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
+
+        // Real-time password validation UI update
+        passwordInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            
+            // Length
+            if (val.length >= 8) {
+                ruleLength.classList.replace('text-gray-500', 'text-green-400');
+                ruleLength.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
+            } else {
+                ruleLength.classList.replace('text-green-400', 'text-gray-500');
+                ruleLength.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
+            }
+
+            // Number
+            if (hasNumber.test(val)) {
+                ruleNumber.classList.replace('text-gray-500', 'text-green-400');
+                ruleNumber.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
+            } else {
+                ruleNumber.classList.replace('text-green-400', 'text-gray-500');
+                ruleNumber.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
+            }
+
+            // Special Char
+            if (hasSpecial.test(val)) {
+                ruleSpecial.classList.replace('text-gray-500', 'text-green-400');
+                ruleSpecial.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
+            } else {
+                ruleSpecial.classList.replace('text-green-400', 'text-gray-500');
+                ruleSpecial.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
+            }
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            errorMessage.classList.add('hidden');
+            
+            const password = passwordInput.value;
+            
+            if (password.length < 8) {
+                showError("Password must be at least 8 characters long.");
+                return;
+            }
+            if (!hasNumber.test(password)) {
+                showError("Password must contain at least one number.");
+                return;
+            }
+            if (!hasSpecial.test(password)) {
+                showError("Password must contain at least one special character.");
+                return;
+            }
+
+            // Validation successful - redirect to the new dashboard
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.textContent = "Setting up...";
+            submitBtn.disabled = true;
+
+            setTimeout(() => {
+                window.location.href = 'broadcast_initial.html';
+            }, 800);
+        });
+
+        function showError(msg) {
+            errorMessage.textContent = msg;
+            errorMessage.classList.remove('hidden');
+            
+            // Shake effect
+            const card = document.querySelector('.glass-card');
+            card.style.transform = 'translateX(10px)';
+            setTimeout(() => card.style.transform = 'translateX(-10px)', 100);
+            setTimeout(() => card.style.transform = 'translateX(10px)', 200);
+            setTimeout(() => card.style.transform = 'translateX(0)', 300);
+        }
+    </script>
+</body>
+</html>

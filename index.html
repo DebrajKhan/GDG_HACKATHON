@@ -8,7 +8,7 @@
     <meta name="description" content="Protect your photos and videos and verify their authenticity.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -105,6 +105,7 @@
         <nav class="nav-links">
             <button class="nav-btn active" data-target="protect-section">Seal Your Identity</button>
             <button class="nav-btn" data-target="verify-section">Check Authenticity</button>
+            <a href="broadcast_initial.html" class="nav-btn" style="text-decoration: none;">Broadcaster</a>
         </nav>
         <div class="theme-toggle">
             <label class="realistic-toggle" aria-label="Toggle Theme">
@@ -151,9 +152,9 @@
                             style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.4));">
                             <defs>
                                 <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                    <stop offset="0%" stop-color="#FFDF00" />
-                                    <stop offset="50%" stop-color="#FDB813" />
-                                    <stop offset="100%" stop-color="#B8860B" />
+                                    <stop offset="0%" stop-color="#60a5fa" />
+                                    <stop offset="50%" stop-color="#3b82f6" />
+                                    <stop offset="100%" stop-color="#1d4ed8" />
                                 </linearGradient>
                                 <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                                     <stop offset="0%" stop-color="#F0F0F0" />
@@ -165,9 +166,9 @@
                             <path d="M22,28 V16 c0,-5.5 4.5,-10 10,-10 c5.5,0 10,4.5 10,10 v12" fill="none"
                                 stroke="url(#silverGrad)" stroke-width="6" stroke-linecap="round" />
                             <!-- Lock Body -->
-                            <rect x="14" y="28" width="36" height="30" rx="4" fill="url(#goldGrad)" stroke="#A06A00"
+                            <rect x="14" y="28" width="36" height="30" rx="4" fill="url(#goldGrad)" stroke="#1e3a8a"
                                 stroke-width="1.5" />
-                            <rect x="16" y="30" width="32" height="26" rx="3" fill="none" stroke="#FFF7B0"
+                            <rect x="16" y="30" width="32" height="26" rx="3" fill="none" stroke="#93c5fd"
                                 stroke-width="1" opacity="0.6" />
                             <!-- Keyhole -->
                             <circle cx="32" cy="40" r="4" fill="#222" />
@@ -185,13 +186,13 @@
                     <svg class="treasure-vault-bg" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="vaultGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stop-color="#FFDF00" />
-                                <stop offset="50%" stop-color="#D4AF37" />
-                                <stop offset="100%" stop-color="#996515" />
+                                <stop offset="0%" stop-color="#60a5fa" />
+                                <stop offset="50%" stop-color="#3b82f6" />
+                                <stop offset="100%" stop-color="#1d4ed8" />
                             </linearGradient>
                             <linearGradient id="vaultDark" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" stop-color="#553A00" />
-                                <stop offset="100%" stop-color="#221500" />
+                                <stop offset="0%" stop-color="#1e3a8a" />
+                                <stop offset="100%" stop-color="#0f172a" />
                             </linearGradient>
                         </defs>
                         <!-- Inside of the vault (dark) -->
@@ -213,12 +214,12 @@
                         <!-- Vault Lid (Open backwards) -->
                         <g id="vault-lid-group"
                             style="transform-origin: 100px 60px; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);">
-                            <path d="M 30 60 L 170 60 L 150 20 L 50 20 Z" fill="url(#vaultGold)" stroke="#664200"
+                            <path d="M 30 60 L 170 60 L 150 20 L 50 20 Z" fill="url(#vaultGold)" stroke="#1e3a8a"
                                 stroke-width="3" stroke-linejoin="round" />
                         </g>
 
                         <!-- Vault Body (Front) -->
-                        <path d="M 20 80 L 180 80 L 170 140 L 30 140 Z" fill="url(#vaultGold)" stroke="#664200"
+                        <path d="M 20 80 L 180 80 L 170 140 L 30 140 Z" fill="url(#vaultGold)" stroke="#1e3a8a"
                             stroke-width="3" stroke-linejoin="round" />
 
                         <!-- Vault Details -->
@@ -226,10 +227,10 @@
                         <circle cx="100" cy="110" r="8" fill="#111" />
                         <path d="M 98 107 h 4 l -1 8 h -2 Z" fill="#FFF" />
                         <!-- Rivets -->
-                        <circle cx="40" cy="90" r="2" fill="#553A00" />
-                        <circle cx="160" cy="90" r="2" fill="#553A00" />
-                        <circle cx="45" cy="130" r="2" fill="#553A00" />
-                        <circle cx="155" cy="130" r="2" fill="#553A00" />
+                        <circle cx="40" cy="90" r="2" fill="#1e3a8a" />
+                        <circle cx="160" cy="90" r="2" fill="#1e3a8a" />
+                        <circle cx="45" cy="130" r="2" fill="#1e3a8a" />
+                        <circle cx="155" cy="130" r="2" fill="#1e3a8a" />
                     </svg>
 
                     <div class="vault-actions" id="vault-actions">
