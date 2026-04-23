@@ -160,7 +160,7 @@ async def get_library():
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"status": "Error", "message": f"Library Fetch Failed: {str(e)}"}
+            content={"status": "Error", "error": f"Library Fetch Failed: {str(e)}"}
         )
 
 @app.post("/verify")
@@ -178,7 +178,7 @@ async def verify_ownership(file: UploadFile = File(...)):
     except Exception:
         return JSONResponse(
             status_code=401,
-            content={"status": "Tampered", "message": "Package decryption failed - Invalid Key or Corrupted Data"}
+            content={"status": "Tampered", "error": "Package decryption failed - Invalid Key or Corrupted Data"}
         )
 
     # 1. Generate pHash of recovered image
