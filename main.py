@@ -69,79 +69,56 @@ async def seal_ownership(owner_id: str, file: UploadFile = File(...)):
         except Exception as e:
             return JSONResponse(status_code=400, content={"status": "Error", "error": f"Failed to read upload: {str(e)}"})
         
-        # 3. Apply AES-256-GCM Seal
+        # 3. Apply Invisible DNA Injection (Pixel-to-Pixel)
+        transaction_id = str(uuid.uuid4())[:8].upper()
+        
+        # Original Localhost Payload format
+        dna_payload = f"App: ORYGIN AI | Owner: {owner_id} | ID: {transaction_id} ####"
+        
+        # This applies the invisible pixel-to-pixel engravtion
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        sealed_package = apply_seal(img, dna_payload)
+        
+        # GENERATE DNA (pHash) for duplicate protection
+        current_phash = get_phash(sealed_package)
+        
+        # Check for Duplicates
+        duplicate = check_duplicate_hash(current_phash)
+        if duplicate:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "status": "Already Claimed",
+                    "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
+                }
+            )
+
+        # 4. Save Metadata to Supabase
+        if not MOCK_MODE:
+            supabase.table("ownership").insert({
+                "owner_id": owner_id,
+                "phash_value": current_phash,
+                "transaction_id": transaction_id
+            }).execute()
+        
+        temp_path = f"temp_{transaction_id}.png"
+        with open(temp_path, "wb") as f:
+            f.write(sealed_package)
         try:
-            print(f"DEBUG: Starting AES Seal for {owner_id}")
-            nparr = np.frombuffer(contents, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
-            if img is None:
-                 raise Exception("Failed to decode image. Please ensure you are uploading a valid image file.")
-
-            sealed_package = apply_seal(img, owner_id)
-            
-            # NOW GENERATE DNA FROM THE SEALED PACKAGE
-            current_phash = get_phash(sealed_package)
-            print(f"DEBUG: Generated Sealed DNA: {current_phash}")
-
-            # 2. Check for Duplicates (Now checking against sealed DNA)
-            duplicate = check_duplicate_hash(current_phash)
-            if duplicate:
-                return JSONResponse(
-                    status_code=409,
-                    content={
-                        "status": "Already Claimed",
-                        "error": f"This asset was already claimed by {duplicate.get('owner_id')} on {str(duplicate.get('created_at'))}"
-                    }
-                )
-
-            # 4. Save Metadata & Signed Hash
-            from security import get_integrity_hmac
-            record_signature = get_integrity_hmac(current_phash, owner_id, PRIVATE_KEY)
-            
-            transaction_id = str(uuid.uuid4())
-            temp_path = f"temp_{transaction_id}.png"
-            
-            with open(temp_path, "wb") as f:
-                f.write(sealed_package)
-            print(f"DEBUG: Temp file created at {temp_path}")
-        except Exception as e:
-             print(f"DEBUG: Sealing Error: {str(e)}")
-             return JSONResponse(status_code=500, content={"status": "Error", "error": f"Image Processing Error: {str(e)}"})
-
-        try:
-            # Upload to Storage
-            print(f"DEBUG: Uploading to Supabase Storage...")
             storage_url = upload_sealed_image(temp_path, f"sealed/{transaction_id}.png")
-            print(f"DEBUG: Upload successful. URL: {storage_url}")
-            
-            # Save Metadata with Integrity Signature
-            if not MOCK_MODE:
-                supabase.table("ownership").insert({
-                    "owner_id": owner_id,
-                    "phash_value": current_phash,
-                    "transaction_id": transaction_id,
-                    "integrity_sig": record_signature
-                }).execute()
-            
-        except Exception as e:
-            print(f"DEBUG: Storage/DB Error: {str(e)}")
-            raise Exception(f"Database/Storage Error: {str(e)}")
-            
+            return {
+                "status": "Impenetrably Sealed",
+                "transaction_id": transaction_id,
+                "phash": current_phash,
+                "sealed_url": str(storage_url)
+            }
         finally:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-        return {
-            "status": "Impenetrably Sealed",
-            "transaction_id": transaction_id,
-            "pHash": current_phash,
-            "sealed_url": str(storage_url)
-        }
+            if os.path.exists(temp_path): os.remove(temp_path)
     except Exception as e:
         return JSONResponse(
             status_code=500,
-            content={"status": "Error", "error": str(e)}
+            content={"status": "Error", "error": f"Global Crash: {str(e)}"}
         )
 
 @app.get("/library")
@@ -161,36 +138,44 @@ async def get_library():
 @app.post("/verify")
 async def verify_ownership(file: UploadFile = File(...)):
     """
-    1. Generates Digital DNA (pHash).
-    2. Verifies against the Vault Database.
+    EXACT LOCALHOST LOGIC:
+    1. Extracts DNA string from pixels.
+    2. Finds Transaction ID.
+    3. Searches Supabase by Transaction ID.
     """
     try:
         contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         
-        # 1. Digital DNA (pHash) verification
-        try:
-            current_phash = get_phash(contents)
-            print(f"DEBUG: Verifying DNA Hash: {current_phash}")
-            duplicate = check_duplicate_hash(current_phash)
-            
-            if duplicate:
-                return {
-                    "status": "Verified via DNA",
-                    "owner_id": duplicate.get("owner_id"),
-                    "timestamp": str(duplicate.get("created_at")),
-                    "phash": current_phash,
-                    "method": "Perceptual Hashing (Digital DNA)"
-                }
-        except Exception as e:
-            print(f"DNA Verification Error: {e}")
+        from security import verify_seal
+        extracted_dna = verify_seal(img)
+        print(f"DEBUG: Extracted DNA String: {extracted_dna}")
+
+        if extracted_dna:
+            # Parse Transaction ID (format: ID: ABC12345)
+            import re
+            match = re.search(r"ID: ([A-Z0-9]+)", extracted_dna)
+            if match:
+                trans_id = match.group(1)
+                print(f"DEBUG: Found Trans ID: {trans_id}")
+                
+                # Check Database
+                response = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
+                if response.data:
+                    record = response.data[0]
+                    return {
+                        "status": "Verified Authentic",
+                        "owner_id": record.get("owner_id"),
+                        "transaction_id": trans_id,
+                        "timestamp": str(record.get("created_at")),
+                        "phash": record.get("phash_value"),
+                        "method": "Invisible Pixel DNA"
+                    }
 
         return JSONResponse(
             status_code=404,
-            content={
-                "status": "Not Found", 
-                "error": "No ownership record found for this asset in the Vault.",
-                "phash": current_phash
-            }
+            content={"status": "Not Found", "error": "No valid DNA found in this asset.", "phash": "CORRUPTED_OR_MISSING"}
         )
     except Exception as e:
         return JSONResponse(
