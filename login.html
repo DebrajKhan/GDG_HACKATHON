@@ -148,7 +148,7 @@
         googleBtn.addEventListener('click', async () => {
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin + '/index.html' }
+                options: { redirectTo: window.location.origin }
             });
             if (error) alert("Google Auth Error: " + error.message);
         });
@@ -170,8 +170,7 @@
                     // Sync with our public users table
                     await supabaseClient.from('users').insert([{ email, last_login: new Date() }]);
                     
-                    // If signup is successful, Supabase usually logs you in automatically
-                    window.location.href = 'index.html';
+                    window.location.href = '/';
                 } else {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error;
@@ -179,7 +178,7 @@
                     // Update 'last_login' 
                     await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
                     
-                    window.location.href = 'index.html';
+                    window.location.href = '/';
                 }
             } catch (err) {
                 alert("Auth Error: " + err.message);
@@ -193,7 +192,7 @@
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
-                window.location.href = 'index.html';
+                window.location.href = '/';
             }
         };
     </script>
