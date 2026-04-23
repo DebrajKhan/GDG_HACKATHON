@@ -20,22 +20,35 @@ else:
     print("Warning: Supabase credentials not found in .env. Entering MOCK MODE.")
     MOCK_MODE = True
 
-def check_duplicate_hash(new_hash: str, threshold: int = 15):
-    """Checks Supabase for any existing hash with Hamming Distance < threshold."""
+def check_duplicate_hash(new_hash: str, threshold: int = 15, trans_id: str = None):
+    """Checks Supabase for any existing hash. Gracefully handles missing columns."""
     if MOCK_MODE:
         return None 
-    
-    # We fetch all records to perform fuzzy comparison
-    # For large datasets, this should be optimized with a specialized index or RPC
-    response = supabase.table("ownership").select("*").execute()
-    records = response.data
-    
-    for record in records:
-        existing_hash = record.get("phash_value")
-        if existing_hash:
-            from security import hamming_distance
-            if hamming_distance(new_hash, existing_hash) < threshold:
-                return record
+    try:
+        if trans_id:
+            print(f"DEBUG: Found Trans ID in Pixels: {trans_id}. Searching Supabase...")
+            db_res = supabase.table("ownership").select("*").eq("transaction_id", trans_id).execute()
+            if db_res.data:
+                print(f"DEBUG: Match found in DB for Transaction ID {trans_id}")
+                return db_res.data[0]
+        
+        # Fetch all records safely
+        response = supabase.table("ownership").select("*").execute()
+        records = response.data or []
+        
+        for record in records:
+            # Only check DNA if the record actually has a phash_value
+            existing_hash = record.get("phash_value")
+            if existing_hash:
+                from security import hamming_distance
+                try:
+                    if hamming_distance(new_hash, existing_hash) < threshold:
+                        return record
+                except:
+                    continue
+    except Exception as e:
+        print(f"DNA Search Warning (might be missing column): {e}")
+        
     return None
 
 def save_metadata(owner_id: str, phash: str, transaction_id: str):
