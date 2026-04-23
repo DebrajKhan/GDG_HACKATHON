@@ -202,7 +202,7 @@ async def chat_with_ai(request: Request):
         if not GEMINI_KEY:
             return {"reply": "I'm sorry, my AI core is currently offline (API Key missing)."}
 
-        prompt = f"You are AquaGuard AI, a security assistant for a digital watermarking and asset protection vault. Help the user with: {user_message}"
+        prompt = f"You are ORYGIN ASSISTANT, a security assistant for a digital watermarking and asset protection vault. Help the user with: {user_message}"
         response = model.generate_content(prompt)
         return {"reply": response.text}
     except Exception as e:
