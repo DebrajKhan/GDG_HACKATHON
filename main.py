@@ -203,6 +203,31 @@ async def verify_ownership(file: UploadFile = File(...)):
             content={"status": "Error", "error": f"Verification Failure: {str(e)}"}
         )
 
+# AI Chatbot Setup
+import google.generativeai as genai
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    print("Warning: GEMINI_API_KEY not found. Chatbot will be disabled.")
+
+@app.post("/chat")
+async def chat_with_ai(request: Request):
+    """AI Security Assistant endpoint."""
+    try:
+        data = await request.json()
+        user_message = data.get("message", "")
+        
+        if not GEMINI_KEY:
+            return {"reply": "I'm sorry, my AI core is currently offline (API Key missing)."}
+
+        prompt = f"You are AquaGuard AI, a security assistant for a digital watermarking and asset protection vault. Help the user with: {user_message}"
+        response = model.generate_content(prompt)
+        return {"reply": response.text}
+    except Exception as e:
+        return {"reply": f"Sorry, I encountered a glitch: {str(e)}"}
+
 # Helper to serve root files (CSS, JS, Images)
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
