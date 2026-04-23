@@ -180,7 +180,7 @@ async def verify_ownership(file: UploadFile = File(...)):
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
     # List of allowed static files in root to avoid serving sensitive files
-    allowed_extensions = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".ico")
+    allowed_extensions = (".css", ".js", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".html")
     if any(file_path.endswith(ext) for ext in allowed_extensions):
         if os.path.exists(file_path):
             return FileResponse(file_path)
