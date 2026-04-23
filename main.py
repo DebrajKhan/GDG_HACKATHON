@@ -198,50 +198,6 @@ async def verify_ownership(file: UploadFile = File(...)):
             content={"status": "Error", "error": f"Verification Failure: {str(e)}"}
         )
 
-    # 2. Check DB
-    response = supabase.table("ownership").select("*").eq("phash_value", recovered_hash).limit(1).execute()
-    records = response.data
-    
-    if not records:
-        return JSONResponse(
-            status_code=404,
-            content={"status": "Unregistered", "message": "No matching fingerprint in database."}
-        )
-
-    record = records[0]
-    
-    # 3. Cryptographic Proof of Database Integrity
-    stored_sig = record.get("integrity_sig")
-    expected_sig = get_integrity_hmac(recovered_hash, record.get("owner_id"), PRIVATE_KEY)
-    
-    if stored_sig and stored_sig != expected_sig:
-         return JSONResponse(
-            status_code=403,
-            content={"status": "Integrity Breach", "message": "The database record for this asset has been modified/penetrated."}
-        )
-
-    # 4. Generate POV Frames for Secure Viewing
-    from security import generate_pov_frames
-    import base64
-    
-    frame_a, frame_b = generate_pov_frames(recovered_img)
-    _, buffer_a = cv2.imencode('.png', frame_a)
-    _, buffer_b = cv2.imencode('.png', frame_b)
-    
-    b64_a = base64.b64encode(buffer_a).decode('utf-8')
-    b64_b = base64.b64encode(buffer_b).decode('utf-8')
-
-    return {
-        "status": "Verified & Authentic",
-        "owner_id": record.get("owner_id"),
-        "transaction_id": record.get("transaction_id"),
-        "pov_frames": {
-            "a": f"data:image/png;base64,{b64_a}",
-            "b": f"data:image/png;base64,{b64_b}"
-        }
-    }
-
-
 # Helper to serve root files (CSS, JS, Images)
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
@@ -250,7 +206,7 @@ async def serve_static(file_path: str):
     if any(file_path.endswith(ext) for ext in allowed_extensions):
         if os.path.exists(file_path):
             return FileResponse(file_path)
-    # If not a static file or doesn't exist, let FastAPI handle other routes
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
     raise HTTPException(status_code=404)
 
 if __name__ == "__main__":
