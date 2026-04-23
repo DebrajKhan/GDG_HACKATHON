@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APP | Secure Your Identity</title>
+    <title>ORYGIN AI | Content Authenticity & Protection</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="ai-styles.css">
 </head>
 <body>
     <div class="galaxy-background">
@@ -27,7 +28,10 @@
 
         <!-- Hero Section -->
         <section class="hero-section">
-            <h1 class="app-title"><span class="gradient-text">APP</span></h1>
+            <h1 class="app-title" style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <img src="assets/logo.png" alt="ORYGIN AI Logo" class="app-logo-hero">
+                <span class="gradient-text">ORYGIN AI</span>
+            </h1>
             <h2 class="app-motto">secure your identity</h2>
         </section>
 
@@ -36,7 +40,7 @@
             <div class="glass-card transparent-box">
                 <h2 class="title">What We Do</h2>
                 <p class="description-text">
-                    Our app APP bans the usage of 3rd party apps and make your own content safe. For experiencing APP please feel to move forward by clicking Get started Now button below.
+                    Our app ORYGIN AI bans the usage of 3rd party apps and make your own content safe. For experiencing ORYGIN AI please feel to move forward by clicking Get started Now button below.
                 </p>
                 <a href="login.html" class="btn-primary get-started-btn">Get started Now</a>
             </div>
@@ -72,7 +76,7 @@
                 <!-- Slide 1 -->
                 <div class="glass-card review-slide">
                     <div class="review-stars">★★★★★</div>
-                    <p>"The best tool for content authenticity. I feel incredibly safe using APP."</p>
+                    <p>"The best tool for content authenticity. I feel incredibly safe using ORYGIN AI."</p>
                     <span class="reviewer">- John D.</span>
                 </div>
                 <!-- Slide 2 -->
@@ -104,5 +108,30 @@
             <p>copyright2026</p>
         </div>
     </footer>
+
+    <!-- Gemma Security Assistant Chatbot -->
+    <div id="chatbot-container" class="chatbot-container">
+        <div id="chat-window" class="chat-window" style="display: none;">
+            <div class="chat-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="online-indicator"></span>
+                    <strong>ORYGIN Assistant (Gemma 2)</strong>
+                </div>
+                <button id="close-chat" class="close-chat">✕</button>
+            </div>
+            <div id="chat-messages" class="chat-messages">
+                <div class="message ai-message">Hello! I'm your Security Assistant. How can I help protect your assets today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about security...">
+                <button id="send-chat-btn">➔</button>
+            </div>
+        </div>
+        <button id="chat-toggle-btn" class="chat-toggle-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
+    </div>
+
+    <script src="chat.js"></script>
 </body>
 </html>
