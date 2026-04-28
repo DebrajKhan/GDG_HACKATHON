@@ -17,18 +17,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Use localUser if available
+    // Resolve user details — session takes priority, fall back to localUser
     const userEmail = session ? session.user.email : localUser;
+    // user_id is the Supabase Auth UUID; for localUser fallback use a stable hash
+    const userId = session ? session.user.id : btoa(localUser || 'guest').replace(/=/g, '');
 
     // Update Profile UI
     const profileName = document.querySelector('.profile-info h3');
-    const profileSub = document.querySelector('.profile-info p');
-    if (profileName) profileName.textContent = userEmail.split('@')[0];
-    if (profileSub) profileSub.textContent = userEmail;
+    const profileSub  = document.querySelector('.profile-info p');
+    if (profileName) profileName.textContent = userEmail ? userEmail.split('@')[0] : 'User';
+    if (profileSub)  profileSub.textContent  = userEmail || '';
     
-    // Pre-fill Owner ID
+    // Pre-fill Owner ID (safe — no crash when session is null)
     const ownerIdInput = document.getElementById('owner-id');
-    if (ownerIdInput) ownerIdInput.value = session.user.email.split('@')[0];
+    if (ownerIdInput) ownerIdInput.value = userEmail ? userEmail.split('@')[0] : '';
 
     const securedFileNames = new Set();
     const fileStore = new Map();
@@ -243,7 +245,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 formData.append('file', file);
 
                 try {
-                    const response = await fetch(`/seal?owner_id=${encodeURIComponent(ownerId)}&username=${encodeURIComponent(username)}`, {
+                    // Pass both owner_id (display name) and user_id (Auth UUID) to /seal
+                    const sealUrl = `/seal?owner_id=${encodeURIComponent(ownerId)}&user_id=${encodeURIComponent(userId)}`;
+                    const response = await fetch(sealUrl, {
                         method: 'POST',
                         body: formData
                     });
@@ -292,17 +296,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- DASHBOARD & CRAWLER ---
     async function loadDashboard() {
         try {
-            // 1. Fetch Library for count
-            const libRes = await fetch('/library');
+            // 1. Fetch THIS user's sealed assets count from real DB
+            const libRes = await fetch(`/library?user_id=${encodeURIComponent(userId)}`);
             const library = await libRes.json();
             const totalAssets = document.getElementById('stat-total-assets');
-            if (totalAssets) totalAssets.textContent = library.length || 0;
+            if (totalAssets) totalAssets.textContent = Array.isArray(library) ? library.length : 0;
 
-            // 2. Fetch Violations
-            const violRes = await fetch('/violations');
+            // 2. Fetch violations SCOPED to this user's assets (real DB)
+            const violRes = await fetch(`/violations?user_id=${encodeURIComponent(userId)}`);
             const violations = await violRes.json();
             const activeViolations = document.getElementById('stat-active-violations');
-            if (activeViolations) activeViolations.textContent = violations.length || 0;
+            if (activeViolations) activeViolations.textContent = Array.isArray(violations) ? violations.length : 0;
             
             // 3. Render Violations Feed
             const feed = document.getElementById('violations-feed');
@@ -347,12 +351,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             scanBtn.disabled = true;
             scanBtn.textContent = 'SCANNING GLOBAL WEB...';
             try {
-                const res = await fetch('/crawl/trigger', { method: 'POST' });
+                // Pass user_id so crawler only checks THIS user's assets
+                const res = await fetch('/crawl/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
                 const data = await res.json();
                 showToast(data.message, data.detections_found > 0 ? '#ff3c3c' : '#00d4ff');
                 loadDashboard();
             } catch (err) {
-                showToast("Crawler Signal Lost", "#ff3c3c");
+                showToast('Crawler Signal Lost', '#ff3c3c');
             } finally {
                 scanBtn.disabled = false;
                 scanBtn.textContent = 'Manual System Scan';
@@ -366,7 +375,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         grid.innerHTML = '<div class="loading-spinner">Decrypting Vault...</div>';
 
         try {
-            const response = await fetch('/library');
+            // Load only THIS user's sealed assets
+            const response = await fetch(`/library?user_id=${encodeURIComponent(userId)}`);
             const data = await response.json();
             
             if (!response.ok) {
@@ -404,16 +414,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- VERIFY ASSET ---
-    const runVerifyBtn = document.getElementById('run-verify-btn');
-    const verifyResult = document.getElementById('verify-result-container');
+    const runVerifyBtn   = document.getElementById('run-verify-btn');
+    const verifyResult   = document.getElementById('verify-result-container');
     const verifyFileList = document.getElementById('verify-file-list');
-    
+
     if (runVerifyBtn) {
         runVerifyBtn.addEventListener('click', async () => {
             const items = Array.from(verifyFileList.querySelectorAll('.file-item'));
             if (items.length === 0) return;
 
-            const id = items[0].getAttribute('data-id');
+            const id   = items[0].getAttribute('data-id');
             const file = fileStore.get(id);
             if (!file) return;
 
@@ -421,53 +431,188 @@ document.addEventListener('DOMContentLoaded', async () => {
             verifyResult.style.display = 'block';
             runVerifyBtn.disabled = true;
             runVerifyBtn.textContent = '🧬 SCANNING...';
-            
-            const badge = document.getElementById('verify-badge');
-            const statusText = document.getElementById('verify-status-text');
-            const ownerInfo = document.getElementById('verify-owner-info');
-            const dnaBox = document.getElementById('verify-dna-string');
-            const aiDesc = document.getElementById('verify-ai-desc');
 
-            badge.className = 'verification-badge';
-            badge.textContent = 'Scanning...';
-            statusText.textContent = 'Extracting Invisible DNA...';
-            ownerInfo.textContent = '';
-            dnaBox.textContent = '...';
-            aiDesc.textContent = 'Waiting for analysis...';
+            const badge      = document.getElementById('verify-badge');
+            const statusText = document.getElementById('verify-status-text');
+            const ownerInfo  = document.getElementById('verify-owner-info');
+            const dnaBox     = document.getElementById('verify-dna-string');
+            const aiDesc     = document.getElementById('verify-ai-desc');
+            const certBtn    = document.getElementById('download-cert-btn');
+
+            badge.className      = 'verification-badge';
+            badge.textContent    = 'Scanning...';
+            statusText.textContent = 'Querying Global Ownership Database...';
+            ownerInfo.textContent  = '';
+            dnaBox.textContent     = '...';
+            aiDesc.textContent     = 'Waiting for analysis...';
+            if (certBtn) certBtn.style.display = 'none';
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const response = await fetch('/verify', { method: 'POST', body: formData });
-                const result = await response.json();
+                // Pass current user_id so backend can verify ownership
+                const verifyUrl = `/verify?user_id=${encodeURIComponent(userId)}`;
+                const response  = await fetch(verifyUrl, { method: 'POST', body: formData });
+                const result    = await response.json();
 
-                if (result.status === "Authentic") {
+                const isOriginal = result.verdict === 'ORIGINAL';
+
+                if (isOriginal) {
                     badge.classList.add('badge-authentic');
-                    badge.textContent = 'Authentic';
-                    statusText.textContent = 'Digital DNA Verified';
-                    ownerInfo.textContent = `Asset Owner: ${result.details.owner_id || 'Verified User'}`;
-                    dnaBox.textContent = result.dna;
-                    aiDesc.textContent = result.details.ai_description || "Certified authentic asset.";
-                    showToast("DNA Match Found!", "#00ff7f");
+                    badge.textContent      = '✅ ORIGINAL';
+                    statusText.textContent = 'Verified — You Are The Original Owner';
+                    ownerInfo.textContent  = `Registered Owner: ${result.owner_id || userEmail}`;
+                    dnaBox.textContent     = result.phash || '—';
+                    aiDesc.textContent     = `Transaction ID: ${result.transaction_id || '—'}  |  Sealed on: ${result.timestamp || '—'}`;
+                    showToast('✅ Ownership Verified!', '#00ff7f');
                 } else {
                     badge.classList.add('badge-tampered');
-                    badge.textContent = 'Tampered';
-                    statusText.textContent = 'Verification Failed';
-                    ownerInfo.textContent = 'No matching DNA found in this asset.';
-                    dnaBox.textContent = 'CORRUPTED_OR_MISSING';
-                    aiDesc.textContent = "Warning: This asset does not contain a valid ORYGIN AI forensic watermark.";
-                    showToast("Tamper Alert!", "#ff3c3c");
+                    badge.textContent      = '⚠️ TAMPERED / NOT OWNER';
+                    statusText.textContent = result.status || 'Verification Failed';
+                    ownerInfo.textContent  = result.reason || 'This account is not the original owner.';
+                    // Show real owner if we found one in DB (copyright alert)
+                    if (result.owner_id) {
+                        ownerInfo.textContent += ` Original owner: ${result.owner_id}.`;
+                    }
+                    dnaBox.textContent = result.phash || 'NOT_FOUND';
+                    aiDesc.textContent = `Transaction ID: ${result.transaction_id || 'N/A'}  |  Sealed on: ${result.timestamp || 'N/A'}`;
+                    showToast('⚠️ Tamper Alert!', '#ff3c3c');
                 }
+
+                // Show PDF download button
+                if (certBtn) {
+                    certBtn.style.display = 'inline-block';
+                    certBtn.onclick = () => generateCertificatePDF({
+                        verdict:        result.verdict || 'TAMPERED',
+                        owner_id:       result.owner_id || 'Unknown',
+                        current_user:   userEmail,
+                        transaction_id: result.transaction_id || 'N/A',
+                        timestamp:      result.timestamp || new Date().toISOString(),
+                        phash:          result.phash || 'N/A',
+                        reason:         result.reason || '',
+                        filename:       file.name
+                    });
+                }
+
             } catch (err) {
-                showToast("Verification failed.", "#ff3c3c");
+                showToast('Verification failed: ' + err.message, '#ff3c3c');
+                console.error('Verify error:', err);
             } finally {
-                runVerifyBtn.disabled = false;
-                runVerifyBtn.textContent = '🔍 RUN AI DIAGNOSTIC';
+                runVerifyBtn.disabled    = false;
+                runVerifyBtn.textContent = '🔍 RUN VERIFICATION';
             }
         });
     }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PDF CERTIFICATE GENERATOR  (uses jsPDF loaded in photo_dashboard.html)
+// ─────────────────────────────────────────────────────────────────────────────
+function generateCertificatePDF(data) {
+    if (typeof window.jspdf === 'undefined') {
+        alert('PDF library not loaded. Please refresh the page and try again.');
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc       = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const isOriginal  = data.verdict === 'ORIGINAL';
+    const pageW       = doc.internal.pageSize.getWidth();
+    const pageH       = doc.internal.pageSize.getHeight();
+    const margin      = 20;
+    const contentW    = pageW - margin * 2;
+
+    // ── Background
+    doc.setFillColor(10, 14, 26);
+    doc.rect(0, 0, pageW, pageH, 'F');
+
+    // ── Verdict banner
+    if (isOriginal) {
+        doc.setFillColor(0, 180, 80);
+    } else {
+        doc.setFillColor(200, 30, 30);
+    }
+    doc.rect(0, 0, pageW, 40, 'F');
+
+    // ── ORYGIN header text
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ORYGIN AI', pageW / 2, 15, { align: 'center' });
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Content Authenticity Certificate', pageW / 2, 23, { align: 'center' });
+
+    // ── Verdict
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(isOriginal ? '✔  ORIGINAL' : '✖  TAMPERED / UNAUTHORIZED', pageW / 2, 34, { align: 'center' });
+
+    // ── Divider
+    doc.setDrawColor(60, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 46, pageW - margin, 46);
+
+    // ── Helper to draw a labelled row
+    let y = 56;
+    const rowGap = 10;
+    function drawRow(label, value, valueColor) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 165, 250);   // blue label
+        doc.text(label.toUpperCase(), margin, y);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(valueColor ? valueColor[0] : 220,
+                         valueColor ? valueColor[1] : 220,
+                         valueColor ? valueColor[2] : 220);
+        doc.setFontSize(10);
+        // Wrap long values
+        const lines = doc.splitTextToSize(String(value), contentW - 50);
+        doc.text(lines, margin + 55, y);
+        y += rowGap * lines.length;
+    }
+
+    drawRow('Verdict',          data.verdict,        isOriginal ? [0,200,100] : [255,80,80]);
+    drawRow('Verified Owner',   data.owner_id);
+    drawRow('Requesting User',  data.current_user);
+    drawRow('File Name',        data.filename);
+    drawRow('Transaction ID',   data.transaction_id);
+    drawRow('Sealed On',        data.timestamp);
+    drawRow('Perceptual Hash',  data.phash);
+    if (data.reason) drawRow('Reason', data.reason);
+
+    // ── Divider
+    y += 4;
+    doc.setDrawColor(40, 80, 160);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    // ── Note
+    doc.setFontSize(8);
+    doc.setTextColor(100, 120, 150);
+    doc.setFont('helvetica', 'italic');
+    const noteText = isOriginal
+        ? 'This certificate confirms that the requesting account is the registered original owner of this content in the ORYGIN system.'
+        : 'This certificate indicates that the requesting account does NOT match the registered owner, or the content has not been registered. This may constitute copyright infringement.';
+    const noteLines = doc.splitTextToSize(noteText, contentW);
+    doc.text(noteLines, margin, y);
+    y += noteLines.length * 5 + 8;
+
+    // ── Footer
+    doc.setFontSize(8);
+    doc.setTextColor(60, 80, 120);
+    doc.text(`Generated by ORYGIN AI  •  ${new Date().toUTCString()}`, pageW / 2, pageH - 12, { align: 'center' });
+    doc.setDrawColor(40, 60, 120);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageH - 16, pageW - margin, pageH - 16);
+
+    // ── Save
+    const filename = `ORYGIN_${data.verdict}_Certificate_${Date.now()}.pdf`;
+    doc.save(filename);
+}
 
 // --- GLOBAL ACTION HANDLERS ---
 window.generateDMCA = async function(violationId) {

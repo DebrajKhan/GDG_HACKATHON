@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ai-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- jsPDF for certificate generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
@@ -313,19 +315,33 @@
                 </div>
                 <div class="file-list" id="verify-file-list"></div>
 
-                <!-- AI Verification Result -->
+                <!-- Verification Result -->
                 <div id="verify-result-container" class="verify-result-card" style="display: none;">
                     <div class="verification-badge" id="verify-badge">Checking...</div>
                     <div class="result-details">
-                        <h3 id="verify-status-text">Analyzing DNA...</h3>
+                        <h3 id="verify-status-text">Querying Ownership Database...</h3>
                         <p id="verify-owner-info" class="owner-text"></p>
                         <div class="dna-string-box">
-                            <span class="label">Extracted DNA:</span>
+                            <span class="label">Perceptual Hash (pHash):</span>
                             <code id="verify-dna-string">---</code>
                         </div>
                         <div class="ai-context-box">
-                            <span class="label">AI Context:</span>
+                            <span class="label">Record Details:</span>
                             <p id="verify-ai-desc"></p>
+                        </div>
+                        <!-- PDF Certificate Download (shown after verification) -->
+                        <div style="margin-top: 1.5rem; text-align: center;">
+                            <button id="download-cert-btn"
+                                style="display:none; background: linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff;
+                                       border:none; border-radius:8px; padding:0.75rem 2rem;
+                                       font-family:'Montserrat',sans-serif; font-size:0.9rem;
+                                       font-weight:700; letter-spacing:1px; cursor:pointer;
+                                       box-shadow:0 4px 20px rgba(59,130,246,0.4);
+                                       transition: transform 0.2s ease, box-shadow 0.2s ease;"
+                                onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 28px rgba(59,130,246,0.6)'"
+                                onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(59,130,246,0.4)'">
+                                📄 Download Certificate (PDF)
+                            </button>
                         </div>
                     </div>
                 </div>
