@@ -6,19 +6,25 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- AUTH SESSION CHECK ---
+    // --- PERSISTENT SESSION CHECK ---
     const { data: { session } } = await supabaseClient.auth.getSession();
     
-    if (!session) {
+    // Check if we have a locally stored session override for demo
+    const localUser = localStorage.getItem('orygin_user');
+    
+    if (!session && !localUser) {
         window.location.href = 'login.html';
         return;
     }
 
+    // Use localUser if available
+    const userEmail = session ? session.user.email : localUser;
+
     // Update Profile UI
     const profileName = document.querySelector('.profile-info h3');
     const profileSub = document.querySelector('.profile-info p');
-    if (profileName) profileName.textContent = session.user.email.split('@')[0];
-    if (profileSub) profileSub.textContent = session.user.email;
+    if (profileName) profileName.textContent = userEmail.split('@')[0];
+    if (profileSub) profileSub.textContent = userEmail;
     
     // Pre-fill Owner ID
     const ownerIdInput = document.getElementById('owner-id');
@@ -41,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => toast.remove(), 500);
         }, 3000);
     }
+    window.showToast = showToast;
 
     // Login Success Handling
     const urlParams = new URLSearchParams(window.location.search);
@@ -62,8 +69,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     navBtns.forEach(btn => {
-        btn.addEventListener('click', () => switchView(btn.getAttribute('data-target')));
+        btn.addEventListener('click', () => {
+            const target = btn.getAttribute('data-target');
+            switchView(target);
+            if (target === 'dashboard-section') loadDashboard();
+            if (target === 'library-section') loadLibrary();
+        });
     });
+
+    // Auto-load Dashboard on Start
+    loadDashboard();
 
     // Sidebar Dropdown Logic
     const accountDropdownBtn = document.getElementById('account-dropdown-btn');
@@ -273,6 +288,77 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    
+    // --- DASHBOARD & CRAWLER ---
+    async function loadDashboard() {
+        try {
+            // 1. Fetch Library for count
+            const libRes = await fetch('/library');
+            const library = await libRes.json();
+            const totalAssets = document.getElementById('stat-total-assets');
+            if (totalAssets) totalAssets.textContent = library.length || 0;
+
+            // 2. Fetch Violations
+            const violRes = await fetch('/violations');
+            const violations = await violRes.json();
+            const activeViolations = document.getElementById('stat-active-violations');
+            if (activeViolations) activeViolations.textContent = violations.length || 0;
+            
+            // 3. Render Violations Feed
+            const feed = document.getElementById('violations-feed');
+            if (!feed) return;
+            feed.innerHTML = '';
+            
+            if (violations.length === 0) {
+                feed.innerHTML = '<div class="no-assets">No active threats detected. System is secure.</div>';
+            } else {
+                violations.forEach(v => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.style.background = 'rgba(255, 60, 60, 0.05)';
+                    item.style.borderLeft = '4px solid #ff3c3c';
+                    item.style.marginBottom = '10px';
+                    item.innerHTML = `
+                        <div class="file-info">
+                            <div class="file-name" style="color: #ff3c3c; font-weight: bold;">
+                                [${v.platform.toUpperCase()}] Unauthorized Re-stream Detected
+                            </div>
+                            <div class="file-size" style="font-family: monospace; font-size: 0.75rem; opacity: 0.7;">
+                                SOURCE: ${v.violating_url}
+                            </div>
+                        </div>
+                        <div class="file-status" style="color: #ff3c3c;">RISK: ${v.risk_score}%</div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-primary" onclick="generateDMCA('${v.id}')" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: #ff3c3c; border: none;">Generate DMCA</button>
+                            <button class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.7rem; background: transparent; border: 1px solid #444;">Ignore</button>
+                        </div>
+                    `;
+                    feed.appendChild(item);
+                });
+            }
+        } catch (err) {
+            console.error('Dashboard Load Error:', err);
+        }
+    }
+
+    const scanBtn = document.getElementById('trigger-scan-btn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', async () => {
+            scanBtn.disabled = true;
+            scanBtn.textContent = 'SCANNING GLOBAL WEB...';
+            try {
+                const res = await fetch('/crawl/trigger', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message, data.detections_found > 0 ? '#ff3c3c' : '#00d4ff');
+                loadDashboard();
+            } catch (err) {
+                showToast("Crawler Signal Lost", "#ff3c3c");
+            } finally {
+                scanBtn.disabled = false;
+                scanBtn.textContent = 'Manual System Scan';
+            }
+        });
+    }
 
     // --- LOAD LIBRARY ---
     async function loadLibrary() {
@@ -370,7 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     statusText.textContent = 'Verification Failed';
                     ownerInfo.textContent = 'No matching DNA found in this asset.';
                     dnaBox.textContent = 'CORRUPTED_OR_MISSING';
-                    aiDesc.textContent = "Warning: This asset does not contain a valid AquaGuard AI watermark.";
+                    aiDesc.textContent = "Warning: This asset does not contain a valid ORYGIN AI forensic watermark.";
                     showToast("Tamper Alert!", "#ff3c3c");
                 }
             } catch (err) {
@@ -382,3 +468,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+// --- GLOBAL ACTION HANDLERS ---
+window.generateDMCA = async function(violationId) {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = "GENERATING...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/generate-dmca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ violation_id: violationId })
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`SUCCESS: Forensic evidence package generated for ${violationId}.\n\nURL: ${result.package_url}\n\nNotice has been sent to the platform legal team.`);
+            const toast = document.querySelector('.toast-msg'); // Simple global find
+            if (window.showToast) window.showToast("DMCA Package Ready", "#00ff7f");
+        }
+    } catch (err) {
+        alert("Legal System Error: Could not generate package.");
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+};

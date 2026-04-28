@@ -181,6 +181,9 @@
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error;
 
+                    // PERSISTENCE: Save to localStorage so we don't ask again
+                    localStorage.setItem('orygin_user', email);
+
                     // Update 'last_login' 
                     await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
                     

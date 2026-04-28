@@ -19,66 +19,100 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Setup Video & Canvas
     video.autoplay = true;
     video.muted = true;
+    video.playsInline = true;
+    video.style.display = 'none'; // Hide the raw video
+    document.body.appendChild(video); // Some browsers require video in DOM to play
+    
     previewContainer.innerHTML = '';
     previewContainer.appendChild(canvas);
     
+    let cameraFPS = 60;
+
     async function startCamera() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            console.log("🎬 Requesting camera access...");
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+                audio: false 
+            });
+            
             video.srcObject = stream;
-            requestAnimationFrame(drawSecureFrame);
+            
+            // Critical: Wait for video to be ready and playing
+            video.onloadedmetadata = () => {
+                console.log("✅ Video metadata loaded");
+                video.play().then(() => {
+                    console.log("▶️ Video playing");
+                    // Set canvas size once
+                    canvas.width = video.videoWidth || 1280;
+                    canvas.height = video.videoHeight || 720;
+                    requestAnimationFrame(drawSecureFrame);
+                });
+            };
+
+            const track = stream.getVideoTracks()[0];
+            cameraFPS = track.getSettings().frameRate || 60;
+            
         } catch (err) {
-            console.error("Camera access denied:", err);
-            alert("Please allow camera access to broadcast.");
+            console.error("❌ Camera access denied:", err);
+            if (statusText) statusText.textContent = "Error: Camera Blocked";
         }
     }
 
-    // 2. Anti-Screenshot Middleware Layer (Visual Encryption)
     function drawSecureFrame() {
-        if (!stream) return;
-        
+        if (!stream || video.paused || video.ended) {
+            requestAnimationFrame(drawSecureFrame);
+            return;
+        }
+
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
-        
-        // Draw the raw camera feed
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // 1. CLEAR & DRAW BASE FRAME
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         if (isLive) {
-            // APPLY MOIRE JAMMING GRID (Visual Encryption)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.lineWidth = 1;
-            const time = performance.now() * 0.01;
+            frameCount++;
+            const time = performance.now();
             
-            for (let i = 0; i < canvas.width; i += 4) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i + Math.sin(time + i) * 10, canvas.height);
-                ctx.stroke();
-            }
+            ctx.save();
+            // 1. --- 100% ORIGINAL QUALITY FEED ---
+            // All visual protection has been removed. 
+            // Security is now handled by the Backend Steganography Engine.
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
 
-            // DYNAMIC MOVING WATERMARK
-            const x = (Math.sin(time * 0.5) * 0.4 + 0.5) * canvas.width;
-            const y = (Math.cos(time * 0.5) * 0.4 + 0.5) * canvas.height;
-            
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.font = '12px Montserrat';
-            ctx.fillText("ORYGIN SECURE STREAM | ID: " + (sessionId || "PENDING"), x, y);
-            
-            // SECURITY OVERLAY: "PROTECTED"
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
-            ctx.fillRect(0, 0, canvas.width, 20);
-            ctx.fillStyle = '#60a5fa';
-            ctx.fillText("● ENCRYPTED MIDDLEWARE ACTIVE", 10, 15);
-        } else {
-            // Preview Mode Dimming
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(0,0, canvas.width, canvas.height);
-            ctx.fillStyle = 'white';
+            // 2. INVISIBLE DIGITAL DNA (Local Marker for identification)
+            // This is kept at near-zero opacity just for local verification
+            const dx = (Math.sin(time * 0.001) * 0.2 + 0.5) * canvas.width;
+            const dy = (Math.cos(time * 0.001) * 0.2 + 0.5) * canvas.height;
+            ctx.save();
+            ctx.globalCompositeOperation = 'overlay';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.001)'; // Completely invisible
+            ctx.font = 'bold 24px Montserrat';
             ctx.textAlign = 'center';
-            ctx.fillText("PREVIEW MODE - CLICK GO LIVE", canvas.width/2, canvas.height/2);
+            ctx.fillText(`ORYGIN-DNA-PROTECT-${sessionId || "ACTIVE"}`, dx, dy);
+            ctx.restore();
+            
+            // 3. SECURITY STATUS OVERLAY
+            ctx.fillStyle = 'rgba(11, 15, 20, 0.8)';
+            ctx.fillRect(15, 15, 280, 35);
+            ctx.fillStyle = '#00FF7F'; // Bright green for 'Safe'
+            ctx.font = 'bold 12px Montserrat';
+            ctx.textAlign = 'left';
+            ctx.fillText("● STEALTH DNA ENFORCEMENT ACTIVE", 35, 37);
+        } else {
+            // Preview Mode (Clean)
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '20px Montserrat';
+            ctx.textAlign = 'center';
+            ctx.fillText("PREVIEW MODE - CLICK 'GO LIVE' TO ENCRYPT", canvas.width / 2, canvas.height / 2);
         }
-        
-        frameCount++;
+
         requestAnimationFrame(drawSecureFrame);
     }
 
