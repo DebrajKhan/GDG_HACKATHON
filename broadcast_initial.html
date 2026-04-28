@@ -357,16 +357,25 @@
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).maybeSingle();
+                
+                let displayName = user.email.split('@')[0];
+                let displayEmail = user.email;
+                let initial = displayName.charAt(0).toUpperCase();
+
                 if (profile) {
-                    // Update UI with real data
-                    document.querySelector('.profile-sidebar h3').textContent = profile.username;
-                    document.querySelector('.profile-sidebar p').textContent = profile.email;
-                    document.querySelector('h1.text-3xl').textContent = profile.fullname;
-                    document.querySelector('.profile-sidebar .bg-brand-blue').textContent = profile.fullname.charAt(0);
-                    document.querySelector('.w-28.h-28').innerHTML = `<span class="text-4xl font-bold">${profile.fullname.charAt(0)}</span>`;
+                    displayName = profile.fullname || displayName;
+                    // Also ensure localStorage is set for other pages like broadcast.html
+                    localStorage.setItem('broadcaster_id', profile.username || displayName);
                 } else {
-                    window.location.href = 'broadcaster_login.html';
+                    localStorage.setItem('broadcaster_id', displayName);
                 }
+
+                // Update UI with data
+                document.querySelector('.profile-sidebar h3').textContent = profile?.username || displayName;
+                document.querySelector('.profile-sidebar p').textContent = displayEmail;
+                document.querySelector('h1.text-3xl').textContent = displayName;
+                document.querySelector('.profile-sidebar .bg-brand-blue').textContent = initial;
+                document.querySelector('.w-28.h-28').innerHTML = `<span class="text-4xl font-bold">${initial}</span>`;
             } else {
                 window.location.href = 'login.html?role=broadcaster';
             }

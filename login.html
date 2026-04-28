@@ -169,7 +169,7 @@
         googleBtn.addEventListener('click', async () => {
             const isBroadcaster = roleBroadcaster.checked;
             const redirectUrl = urlParams.get('redirect');
-            const targetUrl = redirectUrl ? window.location.origin + '/' + redirectUrl : window.location.origin + (isBroadcaster ? '/broadcaster_login.html' : '/photo_dashboard.html');
+            const targetUrl = redirectUrl ? window.location.origin + '/' + redirectUrl : window.location.origin + (isBroadcaster ? '/broadcast_initial.html' : '/photo_dashboard.html');
             
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
@@ -197,7 +197,7 @@
                     await supabaseClient.from('users').insert([{ email, last_login: new Date(), role: isBroadcaster ? 'broadcaster' : 'protector' }]);
                     
                     if (isBroadcaster) {
-                        window.location.href = 'broadcaster_login.html';
+                        window.location.href = urlParams.get('redirect') || 'broadcast_initial.html';
                     } else {
                         window.location.href = 'photo_dashboard.html';
                     }
@@ -213,13 +213,7 @@
                     await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
                     
                     if (isBroadcaster || urlParams.get('redirect')) {
-                        // Check if broadcaster profile exists
-                        const { data: bData } = await supabaseClient.from('broadcasters').select('*').eq('email', email).maybeSingle();
-                        if (bData) {
-                            window.location.href = urlParams.get('redirect') || 'broadcast_initial.html';
-                        } else {
-                            window.location.href = 'broadcaster_login.html';
-                        }
+                        window.location.href = urlParams.get('redirect') || 'broadcast_initial.html';
                     } else {
                         window.location.href = 'photo_dashboard.html';
                     }
