@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORYGIN | Tracker</title>
+    <!-- Montserrat Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Montserrat', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            base: '#0b0f14',
+                            secondary: '#0f1720',
+                            blue: '#3b82f6',
+                            blueDark: '#2563eb',
+                            blueLight: '#60a5fa',
+                            input: '#111827'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="tracker.css">
+</head>
+<body class="antialiased min-h-screen flex flex-col items-center justify-center selection:bg-brand-blue selection:text-white p-6">
+    
+    <div class="glass-card w-full max-w-md p-8 text-center relative overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-brand-blue/20 blur-[80px] rounded-full z-[-1]"></div>
+        
+        <h2 class="text-2xl font-bold tracking-widest text-white mb-6 uppercase text-glow border-b border-white/10 pb-4">Activity Tracker</h2>
+        
+        <div class="space-y-6 text-left">
+            <div class="bg-brand-input/50 p-4 rounded-lg border border-white/10">
+                <p class="text-xs font-medium text-brand-blueLight tracking-wider mb-1 uppercase">Source IP Address</p>
+                <p id="ip-address" class="text-lg font-mono text-white font-semibold">Loading...</p>
+            </div>
+            
+            <div class="bg-brand-input/50 p-4 rounded-lg border border-white/10">
+                <p class="text-xs font-medium text-brand-blueLight tracking-wider mb-1 uppercase">Duration of Content Theft</p>
+                <p id="duration" class="text-lg font-mono text-white font-semibold">Loading...</p>
+            </div>
+        </div>
+
+        <button onclick="window.close()" class="mt-8 w-full bg-gradient-to-r from-red-500 to-red-700 text-white py-3 rounded-xl hover-glow font-bold tracking-widest text-sm transition-transform hover:-translate-y-1 uppercase shadow-[0_0_15px_rgba(220,38,38,0.3)]">
+            Close Tracker
+        </button>
+    </div>
+
+    <script>
+        function generateRandomIP() {
+            return Math.floor(Math.random() * 223) + 1 + '.' + 
+                   Math.floor(Math.random() * 256) + '.' + 
+                   Math.floor(Math.random() * 256) + '.' + 
+                   Math.floor(Math.random() * 256);
+        }
+        
+        function generateRandomDuration() {
+            const mins = Math.floor(Math.random() * 45) + 1;
+            const secs = Math.floor(Math.random() * 59);
+            return `${mins}m ${secs}s`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('ip-address').innerText = generateRandomIP();
+            document.getElementById('duration').innerText = generateRandomDuration();
+        });
+    </script>
+</body>
+</html>
