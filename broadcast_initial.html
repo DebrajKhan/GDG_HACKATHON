@@ -115,13 +115,13 @@
                 <button id="profile-btn" class="text-white hover:text-brand-blueLight transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 </button>
-                <a href="dashboard.html" class="text-2xl font-bold tracking-[0.2em] text-white flex items-center gap-2 hover:text-brand-blueLight transition-colors">
+                <a href="index.html" class="text-2xl font-bold tracking-[0.2em] text-white flex items-center gap-2 hover:text-brand-blueLight transition-colors">
                     ORYGIN
                 </a>
             </div>
             
             <div class="flex items-center gap-6">
-                <a href="dashboard.html" class="hidden md:block text-sm font-medium tracking-wide text-gray-300 hover:text-white transition-colors">DASHBOARD</a>
+                <button id="goto-photo-btn" class="hidden md:block text-sm font-medium tracking-wide text-gray-300 hover:text-white transition-colors">PHOTO PROTECTION PORTAL</button>
             </div>
         </div>
     </nav>
@@ -326,8 +326,13 @@
         </div>
     </footer>
 
-    <!-- Sidebar Interactivity -->
+    <!-- Supabase & Interactivity -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        const SUPABASE_URL = "https://coddjlrywyojgdmfkuph.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZGRqbHJ5d3lvamdkbWZrdXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjgxMDMsImV4cCI6MjA5MjQ0NDEwM30.wXavTOBoYco3WE1iI3RRXKdZX5WKejQUV_AO3BhvftY";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const profileBtn = document.getElementById('profile-btn');
         const sidebar = document.getElementById('profile-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
@@ -346,6 +351,33 @@
         profileBtn.addEventListener('click', toggleSidebar);
         closeBtn.addEventListener('click', toggleSidebar);
         overlay.addEventListener('click', toggleSidebar);
+
+        // --- SESSION & DATA ---
+        async function loadProfile() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).single();
+                if (profile) {
+                    // Update UI with real data
+                    document.querySelector('.profile-sidebar h3').textContent = profile.username;
+                    document.querySelector('.profile-sidebar p').textContent = profile.email;
+                    document.querySelector('h1.text-3xl').textContent = profile.fullname;
+                    document.querySelector('.profile-sidebar .bg-brand-blue').textContent = profile.fullname.charAt(0);
+                    document.querySelector('.w-28.h-28').innerHTML = `<span class="text-4xl font-bold">${profile.fullname.charAt(0)}</span>`;
+                }
+            }
+        }
+
+        document.getElementById('goto-photo-btn').addEventListener('click', () => {
+            const userId = localStorage.getItem('orygin_user');
+            if (userId) {
+                window.location.href = 'photo_dashboard.html';
+            } else {
+                window.location.href = 'login.html?role=protection';
+            }
+        });
+
+        loadProfile();
     </script>
 </body>
 </html>

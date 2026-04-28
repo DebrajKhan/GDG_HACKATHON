@@ -61,6 +61,13 @@
 
             <form id="broadcaster-form" class="space-y-5">
                 
+                <!-- Full Name -->
+                <div>
+                    <label for="fullname" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Full Name</label>
+                    <input type="text" id="fullname" placeholder="e.g. Clayton J. Doe" required
+                        class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all">
+                </div>
+
                 <!-- Username -->
                 <div>
                     <label for="username" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Username</label>
@@ -71,35 +78,21 @@
                 <!-- Birth Date -->
                 <div>
                     <label for="dob" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Date of Birth</label>
-                    <input type="date" id="dob" required min="1970-01-01" max="2008-12-31"
+                    <input type="date" id="dob" required
                         class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-gray-300 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all custom-date">
                 </div>
 
-                <!-- Password -->
+                <!-- YouTube Credentials -->
                 <div>
-                    <label for="password" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">Secure Password</label>
-                    <input type="password" id="password" placeholder="Create a strong password" required
+                    <label for="youtube-id" class="block text-xs font-medium text-brand-blueLight tracking-wider mb-2 uppercase">YouTube Channel ID / Key</label>
+                    <input type="text" id="youtube-id" placeholder="e.g. UC-..." required
                         class="w-full bg-brand-input/50 border border-white/10 rounded-lg p-3 text-white placeholder-gray-600 focus:outline-none focus:border-brand-blue focus:ring-1 focus:ring-brand-blue transition-all">
-                    
-                    <!-- Password Rules Hint -->
-                    <div class="mt-3 text-xs space-y-1" id="password-rules">
-                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-length">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> Minimum 8 characters
-                        </p>
-                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-number">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> At least one number
-                        </p>
-                        <p class="text-gray-500 flex items-center gap-2 transition-colors duration-200" id="rule-special">
-                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 indicator transition-colors duration-200"></span> At least one special character (!@#$%^&*)
-                        </p>
-                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1">Used for broadcast authorization and stream sealing.</p>
                 </div>
-
-                <div id="error-message" class="hidden text-red-400 text-xs font-medium mt-2 bg-red-400/10 p-2 rounded border border-red-400/20"></div>
 
                 <!-- Submit Button -->
                 <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-brand-blue to-brand-blueDark text-white py-3.5 rounded-xl hover-glow font-bold tracking-widest text-sm transition-transform hover:-translate-y-0.5 uppercase shadow-[0_0_20px_rgba(59,130,246,0.3)] mt-8">
-                    Continue to Dashboard
+                    Complete Setup
                 </button>
             </form>
         </div>
@@ -111,84 +104,56 @@
         </div>
     </main>
 
-    <!-- Validation Script -->
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        const SUPABASE_URL = "https://coddjlrywyojgdmfkuph.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvZGRqbHJ5d3lvamdkbWZrdXBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjgxMDMsImV4cCI6MjA5MjQ0NDEwM30.wXavTOBoYco3WE1iI3RRXKdZX5WKejQUV_AO3BhvftY";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const form = document.getElementById('broadcaster-form');
-        const passwordInput = document.getElementById('password');
         const errorMessage = document.getElementById('error-message');
-        
-        // Rule Indicators
-        const ruleLength = document.getElementById('rule-length');
-        const ruleNumber = document.getElementById('rule-number');
-        const ruleSpecial = document.getElementById('rule-special');
 
-        // Regex Patterns
-        const hasNumber = /\d/;
-        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/;
-
-        // Real-time password validation UI update
-        passwordInput.addEventListener('input', (e) => {
-            const val = e.target.value;
-            
-            // Length
-            if (val.length >= 8) {
-                ruleLength.classList.replace('text-gray-500', 'text-green-400');
-                ruleLength.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
-            } else {
-                ruleLength.classList.replace('text-green-400', 'text-gray-500');
-                ruleLength.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
-            }
-
-            // Number
-            if (hasNumber.test(val)) {
-                ruleNumber.classList.replace('text-gray-500', 'text-green-400');
-                ruleNumber.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
-            } else {
-                ruleNumber.classList.replace('text-green-400', 'text-gray-500');
-                ruleNumber.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
-            }
-
-            // Special Char
-            if (hasSpecial.test(val)) {
-                ruleSpecial.classList.replace('text-gray-500', 'text-green-400');
-                ruleSpecial.querySelector('.indicator').classList.replace('bg-gray-600', 'bg-green-400');
-            } else {
-                ruleSpecial.classList.replace('text-green-400', 'text-gray-500');
-                ruleSpecial.querySelector('.indicator').classList.replace('bg-green-400', 'bg-gray-600');
-            }
-        });
-
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            errorMessage.classList.add('hidden');
             
-            const password = passwordInput.value;
-            
-            if (password.length < 8) {
-                showError("Password must be at least 8 characters long.");
-                return;
-            }
-            if (!hasNumber.test(password)) {
-                showError("Password must contain at least one number.");
-                return;
-            }
-            if (!hasSpecial.test(password)) {
-                showError("Password must contain at least one special character.");
-                return;
-            }
-
-            // Validation successful - redirect to the new dashboard
-            const submitBtn = document.getElementById('submit-btn');
+            const fullname = document.getElementById('fullname').value;
             const username = document.getElementById('username').value;
-            submitBtn.textContent = "Setting up...";
+            const dob = document.getElementById('dob').value;
+            const youtubeId = document.getElementById('youtube-id').value;
+            
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.textContent = "Saving Profile...";
             submitBtn.disabled = true;
 
-            // Save for the broadcast session
-            localStorage.setItem('broadcaster_id', username);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) throw new Error("No active session. Please log in again.");
 
-            setTimeout(() => {
-                window.location.href = 'broadcast_initial.html';
-            }, 800);
+                const profileData = {
+                    email: user.email,
+                    fullname,
+                    username,
+                    dob,
+                    youtube_id: youtubeId,
+                    created_at: new Date()
+                };
+
+                const { error } = await supabase.from('broadcasters').insert([profileData]);
+                if (error) throw error;
+
+                // Save for immediate use
+                localStorage.setItem('broadcaster_id', username);
+                localStorage.setItem('broadcaster_name', fullname);
+
+                setTimeout(() => {
+                    window.location.href = 'broadcast_initial.html';
+                }, 800);
+            } catch (err) {
+                alert("Error: " + err.message);
+                submitBtn.textContent = "Complete Setup";
+                submitBtn.disabled = false;
+            }
         });
 
         function showError(msg) {

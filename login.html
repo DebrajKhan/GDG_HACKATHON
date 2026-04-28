@@ -132,29 +132,46 @@
         const signupLink = document.querySelector('.signup-link');
         const welcomeTitle = document.querySelector('.welcome-title');
         const welcomeSubtitle = document.querySelector('.welcome-subtitle');
+        const roleProtection = document.getElementById('role-protection');
+        const roleBroadcaster = document.getElementById('role-broadcaster');
         let isSignup = false;
+
+        // --- URL PARAM HANDLING ---
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('role') === 'broadcaster') {
+            roleBroadcaster.checked = true;
+            updateUIForBroadcaster();
+        }
+
+        roleBroadcaster.addEventListener('change', updateUIForBroadcaster);
+        roleProtection.addEventListener('change', updateUIForBroadcaster);
+
+        function updateUIForBroadcaster() {
+            if (roleBroadcaster.checked) {
+                welcomeTitle.textContent = "Broadcaster Portal";
+                welcomeSubtitle.textContent = isSignup ? "Register your broadcaster profile" : "Sign in to access your broadcast studio";
+            } else {
+                welcomeTitle.textContent = isSignup ? "Create Account" : "Hi twin";
+                welcomeSubtitle.textContent = isSignup ? "Register to start securing your assets" : "Sign in to continue to your dashboard";
+            }
+        }
 
         // --- TOGGLE MODE ---
         signupLink.addEventListener('click', (e) => {
             e.preventDefault();
             isSignup = !isSignup;
-            welcomeTitle.textContent = isSignup ? "Create Account" : "Hi twin";
-            welcomeSubtitle.textContent = isSignup ? "Register to start securing your assets" : "Sign in to continue to your dashboard";
-            submitBtn.textContent = isSignup ? "Create Vault Access" : "Sign In";
+            updateUIForBroadcaster();
+            submitBtn.textContent = isSignup ? "Create Access" : "Sign In";
             signupLink.textContent = isSignup ? "Log in instead" : "Sign up";
         });
 
         // --- GOOGLE LOGIN ---
         googleBtn.addEventListener('click', async () => {
-            const isBroadcaster = document.getElementById('role-broadcaster').checked;
-            if (isBroadcaster) {
-                window.location.href = 'broadcaster_login.html';
-                return;
-            }
-
+            const isBroadcaster = roleBroadcaster.checked;
+            
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin }
+                options: { redirectTo: window.location.origin + (isBroadcaster ? '/broadcaster_login.html' : '/photo_dashboard.html') }
             });
             if (error) alert("Google Auth Error: " + error.message);
         });
@@ -164,6 +181,7 @@
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const isBroadcaster = roleBroadcaster.checked;
 
             submitBtn.textContent = isSignup ? "CREATING ACCOUNT..." : "VERIFYING IDENTITY...";
             submitBtn.disabled = true;
@@ -174,25 +192,40 @@
                     if (error) throw error;
                     
                     // Sync with our public users table
-                    await supabaseClient.from('users').insert([{ email, last_login: new Date() }]);
+                    await supabaseClient.from('users').insert([{ email, last_login: new Date(), role: isBroadcaster ? 'broadcaster' : 'protector' }]);
                     
-                    window.location.href = '/';
+                    if (isBroadcaster) {
+                        window.location.href = 'broadcaster_login.html';
+                    } else {
+                        window.location.href = 'photo_dashboard.html';
+                    }
                 } else {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error;
 
-                    // PERSISTENCE: Save to localStorage so we don't ask again
+                    // PERSISTENCE
                     localStorage.setItem('orygin_user', email);
+                    if (isBroadcaster) localStorage.setItem('broadcaster_id', email.split('@')[0]);
 
                     // Update 'last_login' 
                     await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
                     
-                    window.location.href = '/';
+                    if (isBroadcaster) {
+                        // Check if broadcaster profile exists
+                        const { data: bData } = await supabaseClient.from('broadcasters').select('*').eq('email', email).single();
+                        if (bData) {
+                            window.location.href = 'broadcast_initial.html';
+                        } else {
+                            window.location.href = 'broadcaster_login.html';
+                        }
+                    } else {
+                        window.location.href = 'photo_dashboard.html';
+                    }
                 }
             } catch (err) {
                 alert("Auth Error: " + err.message);
             } finally {
-                submitBtn.textContent = isSignup ? "Create Vault Access" : "Sign In";
+                submitBtn.textContent = isSignup ? "Create Access" : "Sign In";
                 submitBtn.disabled = false;
             }
         });
@@ -201,7 +234,13 @@
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
-                window.location.href = '/';
+                // If session exists, we check the role
+                const { data: user } = await supabaseClient.from('users').select('role').eq('email', session.user.email).single();
+                if (user?.role === 'broadcaster') {
+                    window.location.href = 'broadcast_initial.html';
+                } else {
+                    window.location.href = 'photo_dashboard.html';
+                }
             }
         };
     </script>
