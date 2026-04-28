@@ -152,16 +152,22 @@
             <div class="space-y-6">
                 <!-- Video Preview -->
                 <div class="glass-card overflow-hidden">
-                    <div class="aspect-video bg-black relative flex items-center justify-center border-b border-white/10">
+                    <div class="aspect-video bg-black relative flex items-center justify-center border-b border-white/10" id="video-container">
                         <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiMxMTEiPjwvcmVjdD48cGF0aCBkPSJNMCAwTDQgNFpNNCBMIDBaIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMSI+PC9wYXRoPjwvc3ZnPg==')] opacity-30"></div>
                         
-                        <div class="text-center z-10">
-                            <div class="w-16 h-16 rounded-full bg-brand-input/80 border border-white/10 flex items-center justify-center mx-auto mb-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div id="camera-init-overlay" class="text-center z-20 cursor-pointer hover:scale-105 transition-transform">
+                            <div class="w-16 h-16 rounded-full bg-brand-blue/20 border border-brand-blue/50 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-brand-blueLight" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                             </div>
-                            <p class="text-gray-400 text-sm tracking-wide font-medium">Awaiting Signal...</p>
+                            <p class="text-brand-blueLight text-sm tracking-wide font-bold uppercase">Initialize Camera</p>
+                            <p class="text-gray-500 text-[10px] mt-1 font-light italic">OBS users: Right click > Interact if blocked</p>
+                        </div>
+                        
+                        <div id="camera-loading" class="text-center z-10 hidden">
+                            <div class="w-10 h-10 border-4 border-brand-blue/20 border-t-brand-blue rounded-full animate-spin mx-auto mb-3"></div>
+                            <p id="stream-status-text" class="text-gray-400 text-sm tracking-wide font-medium">Awaiting Signal...</p>
                         </div>
 
                         <!-- Live Badge -->

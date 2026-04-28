@@ -1,21 +1,15 @@
-// Copy to Clipboard Utility
-document.querySelectorAll('button').forEach(btn => {
-    if (btn.textContent === 'Copy') {
-        btn.addEventListener('click', (e) => {
-            const input = e.target.previousElementSibling;
-            input.select();
-            document.execCommand('copy');
-            e.target.textContent = 'Copied!';
-            setTimeout(() => e.target.textContent = 'Copy', 2000);
-        });
-    }
-});
 
 document.addEventListener('DOMContentLoaded', () => {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const previewContainer = document.querySelector('.aspect-video');
+    
+    // Core Selectors
+    const previewContainer = document.getElementById('video-container');
+    const cameraOverlay = document.getElementById('camera-init-overlay');
+    const cameraLoading = document.getElementById('camera-loading');
+    const statusText = document.getElementById('stream-status-text');
+    const goLiveBtn = document.getElementById('go-live-btn');
     
     // UI Elements
     const platformBtns = document.querySelectorAll('.platform-btn');
@@ -29,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const oryginKeysSection = document.getElementById('orygin-keys-section');
     const oryginStreamKey = document.getElementById('orygin-stream-key');
     
-    const goLiveBtn = document.getElementById('go-live-btn');
     const liveBadge = document.getElementById('live-badge');
     const healthStatus = document.getElementById('health-status');
     const healthBitrate = document.getElementById('health-bitrate');
@@ -37,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const banner = document.getElementById('violation-banner');
     const vioTimer = document.getElementById('vio-timer');
-    const vioText = banner.querySelector('.vio-text');
+    const vioText = banner ? banner.querySelector('.vio-text') : null;
 
     let selectedPlatform = null;
     let isVerified = false;
@@ -47,10 +40,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastTime = performance.now();
     let drops = 0;
     let stream = null;
+    let cameraStarted = false;
 
     let timerInterval = null;
     let violationStartTime = null;
     let pollInterval = null;
+
+    // 1. Setup Video (Optimized for OBS background playback)
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.position = 'fixed';
+    video.style.top = '-1000px';
+    video.style.width = '100px';
+    video.style.height = '100px';
+    video.style.opacity = '0.01';
+    document.body.appendChild(video);
 
     // Platform Selection Logic
     platformBtns.forEach(btn => {
@@ -63,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (selectedPlatform === 'twitch') btn.classList.add('tw');
             else if (selectedPlatform === 'facebook') btn.classList.add('fb');
             
-            // Show/Hide relevant fields
             if (selectedPlatform === 'custom') {
                 rtmpUrlGroup.style.display = 'block';
             } else {
@@ -74,10 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                          selectedPlatform === 'twitch' ? 'Twitch Primary Stream Key' : 
                                          selectedPlatform === 'facebook' ? 'Facebook Persistent Stream Key' : 'Stream Key';
             
-            // Open modal
             credFormWrapper.classList.add('open');
-            
-            // Reset verification
             resetVerification();
         });
     });
@@ -101,10 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please enter your stream key.');
             return;
         }
-        if (selectedPlatform === 'custom' && !url) {
-            alert('Please enter the custom RTMP URL.');
-            return;
-        }
 
         verifyConnBtn.disabled = true;
         verifyConnBtn.className = "w-full mt-4 py-3 rounded-lg font-bold tracking-wider text-sm uppercase verify-loading";
@@ -123,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 verifyConnBtn.className = "w-full mt-4 py-3 rounded-lg font-bold tracking-wider text-sm uppercase verify-ok";
                 verifyConnBtn.textContent = "✓ Connection Verified";
                 
-                // Unlock Go Live & Show ORYGIN Key
                 goLiveBtn.disabled = false;
                 oryginKeysSection.classList.remove('opacity-50');
                 oryginStreamKey.value = data.orygin_relay_key || "live_" + Math.random().toString(36).substr(2, 9);
@@ -138,35 +134,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Setup Video & Canvas
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.style.display = 'none';
-    document.body.appendChild(video);
-    
-    previewContainer.innerHTML = '';
-    previewContainer.appendChild(canvas);
-
+    // --- CAMERA LOGIC ---
     async function startCamera() {
+        if (cameraStarted) return;
+        
+        if (cameraOverlay) cameraOverlay.classList.add('hidden');
+        if (cameraLoading) cameraLoading.classList.remove('hidden');
+        
         try {
+            console.log("🎬 Requesting camera access...");
             stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
                 audio: false 
             });
+            
+            cameraStarted = true;
             video.srcObject = stream;
+            
             video.onloadedmetadata = () => {
                 video.play().then(() => {
+                    console.log("▶️ Video active");
                     canvas.width = video.videoWidth || 1280;
                     canvas.height = video.videoHeight || 720;
+                    
+                    if (previewContainer) {
+                        previewContainer.innerHTML = '';
+                        previewContainer.appendChild(canvas);
+                        if (liveBadge) previewContainer.appendChild(liveBadge);
+                    }
+                    
                     requestAnimationFrame(drawSecureFrame);
                 });
             };
         } catch (err) {
-            console.error("Camera access denied:", err);
-            healthStatus.textContent = "Error: Camera Blocked";
+            console.error("❌ Camera access denied:", err);
+            if (cameraLoading) cameraLoading.classList.remove('hidden');
+            if (statusText) statusText.textContent = "Camera Blocked. Check Permissions.";
+            if (cameraOverlay) {
+                cameraOverlay.classList.remove('hidden');
+                const p = cameraOverlay.querySelector('p.text-brand-blueLight');
+                if (p) p.textContent = "Retry Camera";
+            }
         }
     }
+
+    if (cameraOverlay) cameraOverlay.addEventListener('click', startCamera);
+
+    // Auto-try for non-OBS browsers
+    startCamera().catch(() => {
+        console.log("⚠️ Auto-start blocked. Waiting for user interaction.");
+    });
 
     function drawSecureFrame() {
         if (!stream || video.paused || video.ended) {
@@ -250,11 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 goLiveBtn.classList.replace('to-brand-blueDark', 'to-red-800');
                 goLiveBtn.style.boxShadow = '0 0 24px rgba(239,68,68,0.5)';
                 
-                liveBadge.classList.remove('hidden');
-                healthStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span> LIVE';
-                healthStatus.classList.replace('text-gray-500', 'text-red-500');
+                if (liveBadge) liveBadge.classList.remove('hidden');
+                if (healthStatus) {
+                    healthStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span> LIVE';
+                    healthStatus.classList.replace('text-gray-500', 'text-red-500');
+                }
                 
-                // Store session to be read by tracker
                 localStorage.setItem('current_session_id', sessionId);
 
                 startMetricsReporting();
@@ -272,11 +290,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isLive) return;
             
             const now = performance.now();
-            const fps = Math.round((frameCount * 1000) / (now - lastTime));
             const bandwidth = Math.round(Math.random() * 2000 + 3000);
             
-            healthBitrate.textContent = `${bandwidth} kbps`;
-            healthDrops.textContent = `${drops} (${Math.round(drops/Math.max(1, frameCount) * 100)}%)`;
+            if (healthBitrate) healthBitrate.textContent = `${bandwidth} kbps`;
+            if (healthDrops) healthDrops.textContent = `${drops} (${Math.round(drops/Math.max(1, frameCount) * 100)}%)`;
             
             await fetch('/broadcast/metrics', {
                 method: 'POST',
@@ -289,24 +306,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 5000);
     }
 
-    // Polling for violations to show the banner
     function startViolationPolling(broadcasterId) {
         pollInterval = setInterval(async () => {
             if(!isLive) return;
             try {
-                // To fetch violations by broadcaster_id
                 const res = await fetch(`/violations?broadcaster_id=${encodeURIComponent(broadcasterId)}`);
                 const violations = await res.json();
                 
-                if (violations && violations.length > 0) {
-                    // Show banner
-                    if (banner.style.display === 'none') {
+                if (violations && violations.length > 0 && banner) {
+                    if (banner.style.display === 'none' || !banner.style.display) {
                         banner.style.display = 'flex';
-                        const firstVio = violations[0];
-                        vioText.textContent = `Threat Detected! Unauthorized Re-stream found on ${firstVio.platform}.`;
+                        if (vioText) {
+                            const firstVio = violations[0];
+                            vioText.textContent = `Threat Detected! Unauthorized Re-stream found on ${firstVio.platform}.`;
+                        }
                         
-                        violationStartTime = new Date(firstVio.created_at).getTime();
-                        if (isNaN(violationStartTime)) violationStartTime = Date.now(); // Fallback
+                        violationStartTime = new Date(violations[0].created_at).getTime();
+                        if (isNaN(violationStartTime)) violationStartTime = Date.now();
                         
                         startBannerTimer();
                     }
@@ -322,9 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const diff = Math.floor((now - violationStartTime) / 1000);
             const m = Math.floor(diff / 60).toString().padStart(2, '0');
             const s = (diff % 60).toString().padStart(2, '0');
-            vioTimer.textContent = `${m}:${s}`;
+            if (vioTimer) vioTimer.textContent = `${m}:${s}`;
         }, 1000);
     }
-
-    startCamera();
 });
