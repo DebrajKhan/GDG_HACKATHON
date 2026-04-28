@@ -356,7 +356,7 @@
         async function loadProfile() {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).single();
+                const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).maybeSingle();
                 if (profile) {
                     // Update UI with real data
                     document.querySelector('.profile-sidebar h3').textContent = profile.username;

@@ -117,7 +117,7 @@
         window.addEventListener('DOMContentLoaded', async () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).single();
+                const { data: profile } = await supabase.from('broadcasters').select('*').eq('email', user.email).maybeSingle();
                 if (profile) {
                     window.location.href = 'broadcast_initial.html';
                 }

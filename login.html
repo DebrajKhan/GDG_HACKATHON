@@ -214,7 +214,7 @@
                     
                     if (isBroadcaster || urlParams.get('redirect')) {
                         // Check if broadcaster profile exists
-                        const { data: bData } = await supabaseClient.from('broadcasters').select('*').eq('email', email).single();
+                        const { data: bData } = await supabaseClient.from('broadcasters').select('*').eq('email', email).maybeSingle();
                         if (bData) {
                             window.location.href = urlParams.get('redirect') || 'broadcast_initial.html';
                         } else {
@@ -241,7 +241,7 @@
                     return;
                 }
                 // If session exists, we check the role
-                const { data: user } = await supabaseClient.from('users').select('role').eq('email', session.user.email).single();
+                const { data: user } = await supabaseClient.from('users').select('role').eq('email', session.user.email).maybeSingle();
                 if (user?.role === 'broadcaster' || urlParams.get('role') === 'broadcaster') {
                     window.location.href = 'broadcast_initial.html';
                 } else {
