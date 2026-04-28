@@ -364,7 +364,11 @@
                     document.querySelector('h1.text-3xl').textContent = profile.fullname;
                     document.querySelector('.profile-sidebar .bg-brand-blue').textContent = profile.fullname.charAt(0);
                     document.querySelector('.w-28.h-28').innerHTML = `<span class="text-4xl font-bold">${profile.fullname.charAt(0)}</span>`;
+                } else {
+                    window.location.href = 'broadcaster_login.html';
                 }
+            } else {
+                window.location.href = 'login.html?role=broadcaster';
             }
         }
 
