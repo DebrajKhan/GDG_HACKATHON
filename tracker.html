@@ -56,7 +56,7 @@
 
         <!-- Violations List -->
         <div id="violations-container" class="space-y-4 text-left max-h-[400px] overflow-y-auto pr-2">
-            <div class="text-center text-gray-500 py-8 italic">No scans performed yet.</div>
+            <div class="text-center text-gray-500 py-8 italic">No active violations detected. System secure.</div>
         </div>
 
         <div class="mt-8 flex gap-4">
@@ -75,10 +75,16 @@
         const container = document.getElementById('violations-container');
         const statusDisplay = document.getElementById('status-display');
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const broadcasterId = urlParams.get('broadcaster_id') || localStorage.getItem('broadcaster_id') || 'ANON_USER';
+
+        let violationsData = [];
+
         async function fetchViolations() {
             try {
-                const res = await fetch('/violations');
+                const res = await fetch(`/violations?broadcaster_id=${encodeURIComponent(broadcasterId)}`);
                 const data = await res.json();
+                violationsData = data;
                 renderViolations(data);
             } catch (err) {
                 console.error("Fetch failed:", err);
@@ -101,12 +107,33 @@
                     </div>
                     <p class="text-sm font-semibold text-white truncate mb-1">${v.violating_url}</p>
                     <div class="flex justify-between items-center mt-3">
-                        <span class="text-[9px] text-gray-500 uppercase tracking-widest">Status: ${v.status}</span>
+                        <span class="text-[11px] text-gray-400 font-mono flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> 
+                            Active: <span id="timer-${v.id}" class="text-red-400">00:00</span>
+                        </span>
                         <button class="text-[10px] text-brand-blueLight hover:underline font-bold uppercase tracking-widest">Generate DMCA</button>
                     </div>
                 </div>
             `).join('');
+            updateTimers();
         }
+
+        function updateTimers() {
+            const now = Date.now();
+            violationsData.forEach(v => {
+                const vStart = new Date(v.created_at).getTime();
+                let diff = Math.floor((now - vStart) / 1000);
+                if (isNaN(diff) || diff < 0) diff = 0;
+                const m = Math.floor(diff / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                
+                const timerEl = document.getElementById(`timer-${v.id}`);
+                if(timerEl) timerEl.textContent = `${m}:${s}`;
+            });
+        }
+
+        setInterval(updateTimers, 1000);
+        setInterval(fetchViolations, 10000);
 
         scanBtn.addEventListener('click', async () => {
             scanBtn.disabled = true;
@@ -114,7 +141,12 @@
             statusDisplay.classList.remove('hidden');
             
             try {
-                const res = await fetch('/crawl/trigger', { method: 'POST' });
+                // Pass user_id mapping to broadcaster_id conceptually if needed, or update crawl endpoint
+                const res = await fetch('/crawl/trigger', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: broadcasterId }) // Using user_id field for compatibility
+                });
                 const result = await res.json();
                 alert(result.message);
                 await fetchViolations();
