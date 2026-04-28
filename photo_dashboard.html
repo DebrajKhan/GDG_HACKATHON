@@ -419,12 +419,12 @@
     <script src="chat.js"></script>
     <script src="app.js?v=2.0"></script>
     <script>
-        document.getElementById('goto-broadcaster-btn').addEventListener('click', () => {
-            const broadcasterId = localStorage.getItem('broadcaster_id');
-            if (broadcasterId) {
+        document.getElementById('goto-broadcaster-btn').addEventListener('click', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
                 window.location.href = 'broadcast_initial.html';
             } else {
-                window.location.href = 'login.html?role=broadcaster';
+                window.location.href = 'login.html?role=broadcaster&redirect=broadcast_initial.html';
             }
         });
     </script>

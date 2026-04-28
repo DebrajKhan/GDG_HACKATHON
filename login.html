@@ -168,10 +168,12 @@
         // --- GOOGLE LOGIN ---
         googleBtn.addEventListener('click', async () => {
             const isBroadcaster = roleBroadcaster.checked;
+            const redirectUrl = urlParams.get('redirect');
+            const targetUrl = redirectUrl ? window.location.origin + '/' + redirectUrl : window.location.origin + (isBroadcaster ? '/broadcaster_login.html' : '/photo_dashboard.html');
             
             const { error } = await supabaseClient.auth.signInWithOAuth({
                 provider: 'google',
-                options: { redirectTo: window.location.origin + (isBroadcaster ? '/broadcaster_login.html' : '/photo_dashboard.html') }
+                options: { redirectTo: targetUrl }
             });
             if (error) alert("Google Auth Error: " + error.message);
         });
@@ -210,11 +212,11 @@
                     // Update 'last_login' 
                     await supabaseClient.from('users').update({ last_login: new Date() }).eq('email', email);
                     
-                    if (isBroadcaster) {
+                    if (isBroadcaster || urlParams.get('redirect')) {
                         // Check if broadcaster profile exists
                         const { data: bData } = await supabaseClient.from('broadcasters').select('*').eq('email', email).single();
                         if (bData) {
-                            window.location.href = 'broadcast_initial.html';
+                            window.location.href = urlParams.get('redirect') || 'broadcast_initial.html';
                         } else {
                             window.location.href = 'broadcaster_login.html';
                         }
@@ -234,9 +236,13 @@
         window.onload = async () => {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (session) {
+                if (urlParams.get('redirect')) {
+                    window.location.href = urlParams.get('redirect');
+                    return;
+                }
                 // If session exists, we check the role
                 const { data: user } = await supabaseClient.from('users').select('role').eq('email', session.user.email).single();
-                if (user?.role === 'broadcaster') {
+                if (user?.role === 'broadcaster' || urlParams.get('role') === 'broadcaster') {
                     window.location.href = 'broadcast_initial.html';
                 } else {
                     window.location.href = 'photo_dashboard.html';
