@@ -271,6 +271,55 @@ if GEMINI_KEY:
 else:
     print("Warning: GEMINI_API_KEY not found. Chatbot will be disabled.")
 
+@app.get("/violations")
+async def get_violations():
+    """Fetches all detected violations from Supabase."""
+    if MOCK_MODE:
+        return [
+            { "id": "VIO-882", "platform": "YouTube", "violating_url": "youtube.com/live/leaked_match_2024", "risk_score": 92, "status": "detected" },
+            { "id": "VIO-914", "platform": "Twitch", "violating_url": "twitch.tv/pirate_streamer_x", "risk_score": 78, "status": "detected" }
+        ]
+    try:
+        response = supabase.table("violations").select("*").order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/crawl/trigger")
+async def trigger_crawler():
+    """Triggers a simulated crawl across global platforms."""
+    try:
+        # Mock Discovery Logic (In Phase 2 this calls Scrapy/Playwright)
+        discovered_items = [
+            { "url": "https://twitter.com/user_leak/status/1", "platform": "Twitter", "pHash": "a1b2c3d4e5f6" },
+            { "url": "https://youtube.com/watch?v=leak", "platform": "YouTube", "pHash": "f1e2d3c4b5a6" }
+        ]
+        
+        detections = 0
+        if not MOCK_MODE:
+            for item in discovered_items:
+                # Check if we own this content via pHash
+                res = supabase.table("ownership").select("*").eq("phash_value", item["pHash"]).execute()
+                if res.data:
+                    supabase.table("violations").insert({
+                        "asset_id": res.data[0]["transaction_id"],
+                        "platform": item["platform"],
+                        "violating_url": item["url"],
+                        "risk_score": 85,
+                        "status": "detected"
+                    }).execute()
+                    detections += 1
+        else:
+            detections = 1
+
+        return {
+            "success": True,
+            "message": f"Global Scan Complete. Found {detections} potential violations.",
+            "detections_found": detections
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.post("/chat")
 async def chat_with_ai(request: Request):
     """AI Security Assistant endpoint."""
